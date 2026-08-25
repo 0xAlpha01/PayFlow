@@ -173,6 +173,50 @@ nav a.active,
   align-items: center;
   padding: 12px 8px 0;
   border-top: 1px solid var(--line);
+  width: 100%;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+.user:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+.dashboard-loading,
+.dashboard-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+  margin-bottom: 18px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  gap: 14px;
+}
+.dashboard-error {
+  flex-direction: column;
+  color: var(--ink);
+}
+.dashboard-error h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.data-loading,
+.data-empty {
+  display: grid;
+  place-items: center;
+  min-height: 110px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.dashboard-subsection {
+  margin-top: 27px;
 }
 .avatar,
 .top-avatar {

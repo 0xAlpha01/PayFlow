@@ -1,2 +1,4 @@
-import { transactions } from "../data/transactions";
-export const getTransactions = async () => transactions;
+import { api } from "./api";
+export const getTransactions = (params = {}) =>
+  api.get("/transactions", { params });
+export const getTransaction = (id) => api.get(`/transactions/${id}`);

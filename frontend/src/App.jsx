@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BrowserRouter,
   Navigate,
@@ -50,21 +50,9 @@ import {
 } from "./pages/Auth";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import PublicRoute from "./routes/PublicRoute";
+import { useAuth } from "./context/AuthContext";
+import { dashboardService } from "./services/dashboardService";
 
-const revenue = [
-  { name: "Jan 01", value: 18000 },
-  { name: "Jan 08", value: 26000 },
-  { name: "Jan 15", value: 22000 },
-  { name: "Jan 22", value: 35000 },
-  { name: "Jan 29", value: 31000 },
-  { name: "Feb 05", value: 42000 },
-  { name: "Feb 12", value: 39000 },
-  { name: "Feb 19", value: 52000 },
-  { name: "Feb 26", value: 48000 },
-  { name: "Mar 05", value: 61000 },
-  { name: "Mar 12", value: 57000 },
-  { name: "Mar 19", value: 72000 },
-];
 const transactions = [
   {
     name: "Olivia Rhye",
@@ -187,6 +175,17 @@ function StatCard({ title, value, change, icon: Icon, tone = "green" }) {
   );
 }
 function Sidebar({ open, setOpen, dark, setDark }) {
+  const { user, logout } = useAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
+  async function handleLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await logout();
+    } catch {
+      /* local state is cleared by AuthContext */
+    }
+  }
   return (
     <aside className={`sidebar ${open ? "open" : ""}`}>
       <div className="brand">
@@ -234,14 +233,26 @@ function Sidebar({ open, setOpen, dark, setDark }) {
           {dark ? <Sun size={18} /> : <Moon size={18} />}{" "}
           {dark ? "Light mode" : "Dark mode"}
         </button>
-        <div className="user">
-          <div className="avatar">JD</div>
+        <button
+          className="user"
+          onClick={handleLogout}
+          disabled={loggingOut}
+          title="Sign out"
+        >
+          <div className="avatar">
+            {user?.firstName?.[0] || "J"}
+            {user?.lastName?.[0] || "D"}
+          </div>
           <div>
-            <strong>Jordan Davis</strong>
-            <small>jordan@acme.io</small>
+            <strong>
+              {loggingOut
+                ? "Logging out..."
+                : `${user?.firstName || "Jordan"} ${user?.lastName || "Davis"}`}
+            </strong>
+            <small>{user?.email || "jordan@acme.io"}</small>
           </div>
           <MoreHorizontal size={18} />
-        </div>
+        </button>
       </div>
     </aside>
   );
@@ -274,8 +285,13 @@ function Topbar({ setOpen }) {
     </header>
   );
 }
-function ChartCard() {
+function ChartCard({ data = [], loading = false, onPeriodChange }) {
   const [period, setPeriod] = useState("30 Days");
+  const chartData = data.map((item) => ({
+    name: item.date,
+    value: item.revenue,
+  }));
+  const latestRevenue = chartData.at(-1)?.value || 0;
   return (
     <div className="panel chart-panel">
       <div className="panel-heading">
@@ -283,7 +299,22 @@ function ChartCard() {
           <h2>Revenue overview</h2>
           <p>Track your revenue performance over time.</p>
         </div>
-        <select value={period} onChange={(e) => setPeriod(e.target.value)}>
+        <select
+          value={period}
+          onChange={(e) => {
+            const nextPeriod = e.target.value;
+            setPeriod(nextPeriod);
+            onPeriodChange?.(
+              {
+                "7 Days": "7d",
+                "30 Days": "30d",
+                "3 Months": "3m",
+                "6 Months": "6m",
+                "1 Year": "1y",
+              }[nextPeriod],
+            );
+          }}
+        >
           {["7 Days", "30 Days", "3 Months", "6 Months", "1 Year"].map(
             (item) => (
               <option key={item}>{item}</option>
@@ -292,51 +323,94 @@ function ChartCard() {
         </select>
       </div>
       <div className="chart-legend">
-        <strong>$72,000</strong>
+        <strong>{formatMoney(latestRevenue)}</strong>
         <span>
-          <ArrowUpRight size={14} /> 12.5%
+          <ArrowUpRight size={14} /> Live
         </span>
         <small>vs last month</small>
       </div>
       <div className="chart">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={revenue}>
-            <defs>
-              <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#16a66a" stopOpacity={0.28} />
-                <stop offset="100%" stopColor="#16a66a" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <XAxis
-              dataKey="name"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: "#8b96a5", fontSize: 11 }}
-              interval={1}
-            />
-            <YAxis
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: "#8b96a5", fontSize: 11 }}
-              tickFormatter={(value) => `$${value / 1000}k`}
-              width={44}
-            />
-            <Tooltip
-              formatter={(value) => [`$${value.toLocaleString()}`, "Revenue"]}
-              contentStyle={{ border: "1px solid #e6ebe8", borderRadius: 8 }}
-            />
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke="#16a66a"
-              strokeWidth={2.5}
-              fill="url(#revenueFill)"
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        {loading ? (
+          <div className="data-loading">Loading revenue...</div>
+        ) : chartData.length === 0 ? (
+          <div className="data-empty">No revenue data available.</div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#16a66a" stopOpacity={0.28} />
+                  <stop offset="100%" stopColor="#16a66a" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis
+                dataKey="name"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: "#8b96a5", fontSize: 11 }}
+                interval={1}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: "#8b96a5", fontSize: 11 }}
+                tickFormatter={(value) => `$${value / 1000}k`}
+                width={44}
+              />
+              <Tooltip
+                formatter={(value) => [`$${value.toLocaleString()}`, "Revenue"]}
+                contentStyle={{ border: "1px solid #e6ebe8", borderRadius: 8 }}
+              />
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke="#16a66a"
+                strokeWidth={2.5}
+                fill="url(#revenueFill)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   );
+}
+function formatMoney(value) {
+  return `$${Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+function initials(name = "") {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+function dashboardTransactions(rows = []) {
+  return rows.map((row) => ({
+    name: row.customerName,
+    email: row.currency,
+    initials: initials(row.customerName),
+    id: `#${row.id?.slice(-8) || "TRANSACTION"}`,
+    amount: formatMoney(row.amount),
+    method: row.paymentMethod,
+    date: new Date(row.createdAt).toLocaleDateString(),
+    status: row.status.charAt(0).toUpperCase() + row.status.slice(1),
+  }));
+}
+function dashboardCustomers(rows = []) {
+  return rows.map((row) => ({
+    name: row.name,
+    email: row.email,
+    initials: initials(row.name),
+    id: row.id,
+    spent: formatMoney(row.amountSpent),
+    payments: 0,
+    date: row.lastPayment
+      ? new Date(row.lastPayment).toLocaleDateString()
+      : "No payments",
+    status: row.status.charAt(0).toUpperCase() + row.status.slice(1),
+  }));
 }
 function Table({ rows = transactions, customerTable = false }) {
   const [query, setQuery] = useState("");
@@ -424,12 +498,59 @@ function Table({ rows = transactions, customerTable = false }) {
   );
 }
 function Dashboard() {
+  const { user } = useAuth();
+  const [data, setData] = useState({
+    summary: {},
+    revenue: [],
+    transactions: [],
+    customers: [],
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  async function loadDashboard(period = "30d") {
+    setLoading(true);
+    setError(false);
+    try {
+      const [summary, revenueData, transactionData, customerData] =
+        await Promise.all([
+          dashboardService.getDashboardSummary(),
+          dashboardService.getRevenue(period),
+          dashboardService.getRecentTransactions(),
+          dashboardService.getRecentCustomers(),
+        ]);
+      setData({
+        summary: summary.data.data,
+        revenue: revenueData.data.data || [],
+        transactions: transactionData.data.data || [],
+        customers: customerData.data.data || [],
+      });
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+  // The initial request synchronizes this view with the protected API.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+  const summary = data.summary;
+  if (error)
+    return (
+      <div className="dashboard-error">
+        <h2>Unable to load dashboard data.</h2>
+        <button className="button" onClick={loadDashboard}>
+          Try again
+        </button>
+      </div>
+    );
   return (
     <>
       <div className="welcome-row">
         <div>
           <h2>
-            Good morning, Jordan <span>✦</span>
+            Good morning, {user?.firstName || "there"} <span>✦</span>
           </h2>
           <p>Keep an eye on your numbers. You're doing great.</p>
         </div>
@@ -437,36 +558,44 @@ function Dashboard() {
           <Plus size={17} /> Create invoice
         </Button>
       </div>
-      <div className="stats-grid">
-        <StatCard
-          title="Total revenue"
-          value="$284,560.00"
-          change="12.5%"
-          icon={CircleDollarSign}
-        />
-        <StatCard
-          title="Available balance"
-          value="$48,290.00"
-          change="8.2%"
-          icon={Wallet}
-          tone="blue"
-        />
-        <StatCard
-          title="Pending payments"
-          value="$12,840.00"
-          change="4.1%"
-          icon={Activity}
-          tone="orange"
-        />
-        <StatCard
-          title="Total customers"
-          value="2,420"
-          change="18.2%"
-          icon={Users}
-          tone="purple"
-        />
-      </div>
-      <ChartCard />
+      {loading ? (
+        <div className="dashboard-loading">Loading your financial data...</div>
+      ) : (
+        <div className="stats-grid">
+          <StatCard
+            title="Total revenue"
+            value={formatMoney(summary.totalRevenue)}
+            change="Live"
+            icon={CircleDollarSign}
+          />
+          <StatCard
+            title="Available balance"
+            value={formatMoney(summary.availableBalance)}
+            change="Live"
+            icon={Wallet}
+            tone="blue"
+          />
+          <StatCard
+            title="Pending payments"
+            value={formatMoney(summary.pendingPayments)}
+            change="Live"
+            icon={Activity}
+            tone="orange"
+          />
+          <StatCard
+            title="Total customers"
+            value={Number(summary.totalCustomers || 0).toLocaleString()}
+            change="Live"
+            icon={Users}
+            tone="purple"
+          />
+        </div>
+      )}
+      <ChartCard
+        data={data.revenue}
+        loading={loading}
+        onPeriodChange={loadDashboard}
+      />
       <div className="section-heading">
         <div>
           <h2>Recent transactions</h2>
@@ -476,7 +605,29 @@ function Dashboard() {
           View all <ArrowUpRight size={15} />
         </NavLink>
       </div>
-      <Table />
+      {loading ? (
+        <div className="panel data-loading">Loading transactions...</div>
+      ) : data.transactions.length === 0 ? (
+        <div className="panel data-empty">No transactions yet.</div>
+      ) : (
+        <Table rows={dashboardTransactions(data.transactions)} />
+      )}
+      <div className="section-heading dashboard-subsection">
+        <div>
+          <h2>Recent customers</h2>
+          <p>Your latest customer activity.</p>
+        </div>
+        <NavLink to="/customers">
+          View all <ArrowUpRight size={15} />
+        </NavLink>
+      </div>
+      {loading ? (
+        <div className="panel data-loading">Loading customers...</div>
+      ) : data.customers.length === 0 ? (
+        <div className="panel data-empty">No customers yet.</div>
+      ) : (
+        <Table rows={dashboardCustomers(data.customers)} customerTable />
+      )}
     </>
   );
 }

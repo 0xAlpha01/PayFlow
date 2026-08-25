@@ -19,16 +19,19 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 		utils.Failure(c, 400, "invalid request body", nil)
 		return
 	}
-	user, err := h.auth.Signup(c.Request.Context(), input)
+	_, err := h.auth.Signup(c.Request.Context(), input)
 	if err != nil {
 		code := http.StatusBadRequest
 		if strings.Contains(err.Error(), "already") {
 			code = http.StatusConflict
 		}
+		if strings.Contains(err.Error(), "email delivery") {
+			code = http.StatusServiceUnavailable
+		}
 		utils.Failure(c, code, err.Error(), nil)
 		return
 	}
-	utils.Success(c, 201, "Account created successfully. Please verify your email.", gin.H{"user": user})
+	utils.Success(c, 201, "Verification code sent to your email.", gin.H{"email": strings.ToLower(strings.TrimSpace(input.Email))})
 }
 func (h *AuthHandler) Login(c *gin.Context) {
 	var input services.LoginInput
@@ -96,7 +99,14 @@ func (h *AuthHandler) ResendEmail(c *gin.Context) {
 		return
 	}
 	if err := h.auth.ResendEmail(c, body.Email); err != nil {
-		utils.Failure(c, 500, "unable to resend verification", nil)
+		code := http.StatusBadRequest
+		if strings.Contains(err.Error(), "recently sent") {
+			code = http.StatusTooManyRequests
+		}
+		if strings.Contains(err.Error(), "email delivery") {
+			code = http.StatusServiceUnavailable
+		}
+		utils.Failure(c, code, err.Error(), nil)
 		return
 	}
 	utils.Success(c, 200, "Verification email sent", nil)

@@ -4,10 +4,13 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
+
+	"math/big"
 
 	"github.com/ngwebwork/payflow/internal/models"
 	"github.com/ngwebwork/payflow/internal/repositories"
@@ -36,14 +39,26 @@ type LoginInput struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
+type PendingSignup struct {
+	FirstName        string    `json:"firstName"`
+	LastName         string    `json:"lastName"`
+	BusinessName     string    `json:"businessName"`
+	Email            string    `json:"email"`
+	Phone            string    `json:"phone"`
+	PasswordHash     string    `json:"passwordHash"`
+	VerificationHash string    `json:"verificationHash"`
+	CreatedAt        time.Time `json:"createdAt"`
+}
 
 func NewAuthService(users *repositories.UserRepository, r *redis.Client, jwt *JWTService, email *EmailService, phone *PhoneService) *AuthService {
 	return &AuthService{users: users, redis: r, jwt: jwt, email: email, phone: phone}
 }
 func code() string {
-	b := make([]byte, 4)
-	_, _ = rand.Read(b)
-	return fmt.Sprintf("%06d", int(b[0])<<16|int(b[1])<<8|int(b[2])%1000000)
+	number, err := rand.Int(rand.Reader, big.NewInt(1000000))
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%06d", number.Int64())
 }
 func token() string { b := make([]byte, 32); _, _ = rand.Read(b); return hex.EncodeToString(b) }
 func (s *AuthService) Signup(ctx context.Context, input SignupInput) (*models.User, error) {
@@ -77,19 +92,28 @@ func (s *AuthService) Signup(ctx context.Context, input SignupInput) (*models.Us
 	if err != nil {
 		return nil, err
 	}
-	now := time.Now().UTC()
-	user := &models.User{ID: primitive.NewObjectID(), FirstName: input.FirstName, LastName: input.LastName, Email: input.Email, Phone: input.Phone, Password: hash, BusinessName: input.BusinessName, IsActive: true, CreatedAt: now, UpdatedAt: now}
-	if err := s.users.Create(ctx, user); err != nil {
-		return nil, err
-	}
 	verification := code()
-	if err := s.redis.Set(ctx, "verify:email:"+user.Email, verification, 10*time.Minute).Err(); err != nil {
+	if verification == "" {
+		return nil, errors.New("unable to generate verification code")
+	}
+	verificationHash, err := utils.HashPassword(verification)
+	if err != nil {
 		return nil, err
 	}
-	if err := s.email.SendVerification(user.Email, verification); err != nil {
+	pending := PendingSignup{FirstName: input.FirstName, LastName: input.LastName, BusinessName: input.BusinessName, Email: input.Email, Phone: input.Phone, PasswordHash: hash, VerificationHash: verificationHash, CreatedAt: time.Now().UTC()}
+	pendingData, err := json.Marshal(pending)
+	if err != nil {
 		return nil, err
 	}
-	return user, nil
+	key := "pending_signup:" + input.Email
+	if err := s.redis.Set(ctx, key, pendingData, 10*time.Minute).Err(); err != nil {
+		return nil, err
+	}
+	if err := s.email.SendVerification(input.Email, verification); err != nil {
+		_ = s.redis.Del(ctx, key).Err()
+		return nil, err
+	}
+	return nil, nil
 }
 func (s *AuthService) Login(ctx context.Context, input LoginInput) (*models.User, string, string, error) {
 	user, err := s.users.ByEmail(ctx, strings.ToLower(strings.TrimSpace(input.Email)))
@@ -135,29 +159,80 @@ func (s *AuthService) Logout(ctx context.Context, refresh string) error {
 	return s.redis.Del(ctx, "session:"+claims.ID).Err()
 }
 func (s *AuthService) VerifyEmail(ctx context.Context, email, verification string) error {
-	key := "verify:email:" + strings.ToLower(email)
-	if s.redis.Get(ctx, key).Val() != verification {
-		return errors.New("invalid or expired verification code")
+	email = strings.ToLower(strings.TrimSpace(email))
+	key := "pending_signup:" + email
+	pendingData, err := s.redis.Get(ctx, key).Result()
+	if errors.Is(err, redis.Nil) {
+		return errors.New("verification code has expired. Please request a new code")
 	}
-	user, err := s.users.ByEmail(ctx, email)
-	if err != nil || user == nil {
+	if err != nil {
+		return errors.New("unable to verify email")
+	}
+	var pending PendingSignup
+	if err := json.Unmarshal([]byte(pendingData), &pending); err != nil {
 		return errors.New("invalid verification request")
 	}
-	if err := s.users.Update(ctx, user.ID, bson.M{"emailVerified": true}); err != nil {
+	if utils.CheckPassword(pending.VerificationHash, verification) != nil {
+		return errors.New("invalid verification code")
+	}
+	existing, err := s.users.ByEmail(ctx, pending.Email)
+	if err != nil {
+		return err
+	}
+	if existing != nil {
+		return errors.New("email is already registered")
+	}
+	if pending.Phone != "" {
+		existing, err = s.users.ByPhone(ctx, pending.Phone)
+		if err != nil {
+			return err
+		}
+		if existing != nil {
+			return errors.New("phone number is already registered")
+		}
+	}
+	user := &models.User{ID: primitive.NewObjectID(), FirstName: pending.FirstName, LastName: pending.LastName, Email: pending.Email, Phone: pending.Phone, Password: pending.PasswordHash, BusinessName: pending.BusinessName, EmailVerified: true, IsActive: true, CreatedAt: pending.CreatedAt, UpdatedAt: time.Now().UTC()}
+	if err := s.users.Create(ctx, user); err != nil {
 		return err
 	}
 	return s.redis.Del(ctx, key).Err()
 }
 func (s *AuthService) ResendEmail(ctx context.Context, email string) error {
-	user, err := s.users.ByEmail(ctx, email)
-	if err != nil || user == nil {
-		return nil
+	email = strings.ToLower(strings.TrimSpace(email))
+	key := "pending_signup:" + email
+	data, err := s.redis.Get(ctx, key).Result()
+	if errors.Is(err, redis.Nil) {
+		return errors.New("verification request has expired")
 	}
-	value := code()
-	if err := s.redis.Set(ctx, "verify:email:"+user.Email, value, 10*time.Minute).Err(); err != nil {
+	if err != nil {
 		return err
 	}
-	return s.email.SendVerification(user.Email, value)
+	allowed, err := s.redis.SetNX(ctx, "pending_signup_resend:"+email, "1", time.Minute).Result()
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return errors.New("verification email recently sent; please wait before requesting another")
+	}
+	var pending PendingSignup
+	if err := json.Unmarshal([]byte(data), &pending); err != nil {
+		return errors.New("invalid verification request")
+	}
+	value := code()
+	valueHash, err := utils.HashPassword(value)
+	if err != nil {
+		return err
+	}
+	pending.VerificationHash = valueHash
+	pending.CreatedAt = time.Now().UTC()
+	updated, err := json.Marshal(pending)
+	if err != nil {
+		return err
+	}
+	if err := s.redis.Set(ctx, key, updated, 10*time.Minute).Err(); err != nil {
+		return err
+	}
+	return s.email.SendVerification(pending.Email, value)
 }
 func (s *AuthService) SendPhone(ctx context.Context, phone string) error {
 	user, err := s.users.ByPhone(ctx, phone)
