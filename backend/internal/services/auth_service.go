@@ -6,14 +6,15 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/ngwebwork/payflow/internal/models"
 	"github.com/ngwebwork/payflow/internal/repositories"
 	"github.com/ngwebwork/payflow/internal/utils"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"strings"
-	"time"
 )
 
 type AuthService struct {
@@ -158,23 +159,27 @@ func (s *AuthService) ResendEmail(ctx context.Context, email string) error {
 	}
 	return s.email.SendVerification(user.Email, value)
 }
-func (s *AuthService) SendPhone(ctx context.Context, id primitive.ObjectID) error {
-	user, err := s.users.ByID(ctx, id)
+func (s *AuthService) SendPhone(ctx context.Context, phone string) error {
+	user, err := s.users.ByPhone(ctx, phone)
 	if err != nil || user == nil || user.Phone == "" {
 		return errors.New("phone number is required")
 	}
 	value := code()
-	if err := s.redis.Set(ctx, "verify:phone:"+id.Hex(), value, 10*time.Minute).Err(); err != nil {
+	if err := s.redis.Set(ctx, "verify:phone:"+phone, value, 10*time.Minute).Err(); err != nil {
 		return err
 	}
 	return s.phone.SendCode(user.Phone, value)
 }
-func (s *AuthService) VerifyPhone(ctx context.Context, id primitive.ObjectID, value string) error {
-	key := "verify:phone:" + id.Hex()
+func (s *AuthService) VerifyPhone(ctx context.Context, phone, value string) error {
+	key := "verify:phone:" + phone
 	if s.redis.Get(ctx, key).Val() != value {
 		return errors.New("invalid or expired verification code")
 	}
-	if err := s.users.Update(ctx, id, bson.M{"phoneVerified": true}); err != nil {
+	user, err := s.users.ByPhone(ctx, phone)
+	if err != nil || user == nil {
+		return errors.New("invalid phone verification request")
+	}
+	if err := s.users.Update(ctx, user.ID, bson.M{"phoneVerified": true}); err != nil {
 		return err
 	}
 	return s.redis.Del(ctx, key).Err()

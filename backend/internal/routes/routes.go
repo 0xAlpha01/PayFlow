@@ -17,10 +17,10 @@ func Setup(r *gin.Engine, h *handlers.AuthHandler, jwt *services.JWTService, cli
 	api.POST("/reset-password", h.ResetPassword)
 	api.POST("/verify-email", h.VerifyEmail)
 	api.POST("/resend-email-verification", h.ResendEmail)
+	api.POST("/send-phone-code", h.SendPhone)
+	api.POST("/verify-phone", h.VerifyPhone)
 	protected := api.Group("")
 	protected.Use(middleware.Auth(jwt))
 	protected.POST("/logout", h.Logout)
 	protected.GET("/me", h.Me)
-	protected.POST("/send-phone-code", h.SendPhone)
-	protected.POST("/verify-phone", h.VerifyPhone)
 }

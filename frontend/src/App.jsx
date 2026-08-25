@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   BrowserRouter,
+  Navigate,
   NavLink,
   Route,
   Routes,
@@ -39,6 +40,16 @@ import {
   X,
 } from "lucide-react";
 import "./App.css";
+import {
+  Login,
+  Signup,
+  VerifyEmail,
+  VerifyPhone,
+  ForgotPassword,
+  ResetPassword,
+} from "./pages/Auth";
+import ProtectedRoute from "./routes/ProtectedRoute";
+import PublicRoute from "./routes/PublicRoute";
 
 const revenue = [
   { name: "Jan 01", value: 18000 },
@@ -715,6 +726,29 @@ function Settings() {
 function AppShell() {
   const [open, setOpen] = useState(false);
   const [dark, setDark] = useState(false);
+  const location = useLocation();
+  const isAuthPage = [
+    "/login",
+    "/signup",
+    "/verify-email",
+    "/verify-phone",
+    "/forgot-password",
+    "/reset-password",
+  ].includes(location.pathname);
+  if (isAuthPage) {
+    return (
+      <Routes>
+        <Route element={<PublicRoute />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/verify-phone" element={<VerifyPhone />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+        </Route>
+      </Routes>
+    );
+  }
   return (
     <div className={dark ? "app dark" : "app"}>
       <Sidebar open={open} setOpen={setOpen} dark={dark} setDark={setDark} />
@@ -722,58 +756,77 @@ function AppShell() {
         <Topbar setOpen={setOpen} />
         <div className="content">
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route
-              path="/customers/:id"
-              element={<ListPage type="customers" />}
-            />
-            <Route path="/customers" element={<ListPage type="customers" />} />
-            <Route
-              path="/invoices/create"
-              element={
-                <Page
-                  title="Create invoice"
-                  description="Send a professional invoice to your customer."
-                >
-                  <div className="empty-panel form-placeholder">
-                    <FileText size={28} />
-                    <h3>Invoice builder</h3>
-                    <p>Add customers, line items, taxes, and due dates here.</p>
-                    <Button>Start building</Button>
-                  </div>
-                </Page>
-              }
-            />
-            <Route
-              path="/invoices/:id"
-              element={<ListPage type="invoices" />}
-            />
-            <Route path="/invoices" element={<ListPage type="invoices" />} />
-            <Route
-              path="/transactions"
-              element={<ListPage type="transactions" />}
-            />
-            <Route path="/payments" element={<ListPage type="payments" />} />
-            <Route
-              path="/subscriptions"
-              element={<ListPage type="subscriptions" />}
-            />
-            <Route path="/analytics" element={<ListPage type="analytics" />} />
-            <Route path="/settings/*" element={<Settings />} />
-            <Route
-              path="*"
-              element={
-                <Page
-                  title="Page not found"
-                  description="The page you requested does not exist."
-                >
-                  <Button onClick={() => window.history.back()}>
-                    <ChevronLeft size={16} /> Go back
-                  </Button>
-                </Page>
-              }
-            />
+            <Route element={<PublicRoute />}>
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/verify-phone" element={<VerifyPhone />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+            </Route>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route
+                path="/customers/:id"
+                element={<ListPage type="customers" />}
+              />
+              <Route
+                path="/customers"
+                element={<ListPage type="customers" />}
+              />
+              <Route
+                path="/invoices/create"
+                element={
+                  <Page
+                    title="Create invoice"
+                    description="Send a professional invoice to your customer."
+                  >
+                    <div className="empty-panel form-placeholder">
+                      <FileText size={28} />
+                      <h3>Invoice builder</h3>
+                      <p>
+                        Add customers, line items, taxes, and due dates here.
+                      </p>
+                      <Button>Start building</Button>
+                    </div>
+                  </Page>
+                }
+              />
+              <Route
+                path="/invoices/:id"
+                element={<ListPage type="invoices" />}
+              />
+              <Route path="/invoices" element={<ListPage type="invoices" />} />
+              <Route
+                path="/transactions"
+                element={<ListPage type="transactions" />}
+              />
+              <Route path="/payments" element={<ListPage type="payments" />} />
+              <Route
+                path="/subscriptions"
+                element={<ListPage type="subscriptions" />}
+              />
+              <Route
+                path="/analytics"
+                element={<ListPage type="analytics" />}
+              />
+              <Route path="/settings/*" element={<Settings />} />
+              <Route
+                path="*"
+                element={
+                  <Page
+                    title="Page not found"
+                    description="The page you requested does not exist."
+                  >
+                    <Button onClick={() => window.history.back()}>
+                      <ChevronLeft size={16} /> Go back
+                    </Button>
+                  </Page>
+                }
+              />
+            </Route>
+            <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </div>
       </main>

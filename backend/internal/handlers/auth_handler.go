@@ -1,12 +1,13 @@
 package handlers
 
 import (
+	"net/http"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/ngwebwork/payflow/internal/services"
 	"github.com/ngwebwork/payflow/internal/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"net/http"
-	"strings"
 )
 
 type AuthHandler struct{ auth *services.AuthService }
@@ -101,31 +102,29 @@ func (h *AuthHandler) ResendEmail(c *gin.Context) {
 	utils.Success(c, 200, "Verification email sent", nil)
 }
 func (h *AuthHandler) SendPhone(c *gin.Context) {
-	id, ok := userID(c)
-	if !ok {
-		utils.Failure(c, 401, "unauthorized", nil)
+	var body struct {
+		Phone string `json:"phone"`
+	}
+	if c.ShouldBindJSON(&body) != nil || body.Phone == "" {
+		utils.Failure(c, 400, "phone is required", nil)
 		return
 	}
-	if err := h.auth.SendPhone(c, id); err != nil {
+	if err := h.auth.SendPhone(c, body.Phone); err != nil {
 		utils.Failure(c, 400, err.Error(), nil)
 		return
 	}
 	utils.Success(c, 200, "Phone verification code sent", nil)
 }
 func (h *AuthHandler) VerifyPhone(c *gin.Context) {
-	id, ok := userID(c)
-	if !ok {
-		utils.Failure(c, 401, "unauthorized", nil)
-		return
-	}
 	var body struct {
-		Code string `json:"code"`
+		Phone string `json:"phone"`
+		Code  string `json:"code"`
 	}
-	if c.ShouldBindJSON(&body) != nil {
-		utils.Failure(c, 400, "code is required", nil)
+	if c.ShouldBindJSON(&body) != nil || body.Phone == "" || body.Code == "" {
+		utils.Failure(c, 400, "phone and code are required", nil)
 		return
 	}
-	if err := h.auth.VerifyPhone(c, id, body.Code); err != nil {
+	if err := h.auth.VerifyPhone(c, body.Phone, body.Code); err != nil {
 		utils.Failure(c, 400, err.Error(), nil)
 		return
 	}

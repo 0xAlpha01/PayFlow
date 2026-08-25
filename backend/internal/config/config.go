@@ -10,6 +10,7 @@ import (
 
 type Config struct {
 	Port, MongoURI, MongoDatabase, RedisAddr, RedisPassword, ClientURL string
+	SMTPHost, SMTPPort, SMTPUsername, SMTPPassword, SMTPFrom           string
 	RedisDB                                                            int
 	AccessSecret, RefreshSecret                                        string
 	AccessExpiry, RefreshExpiry                                        time.Duration
@@ -25,7 +26,7 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("invalid refresh expiry: %w", err)
 	}
-	cfg := Config{Port: get("PORT", "8080"), MongoURI: get("MONGODB_URI", "mongodb://localhost:27017"), MongoDatabase: get("MONGODB_DATABASE", "payflow"), RedisAddr: get("REDIS_ADDR", "localhost:6379"), RedisPassword: os.Getenv("REDIS_PASSWORD"), ClientURL: get("CLIENT_URL", "http://localhost:5173"), AccessSecret: os.Getenv("JWT_ACCESS_SECRET"), RefreshSecret: os.Getenv("JWT_REFRESH_SECRET"), AccessExpiry: access, RefreshExpiry: refresh}
+	cfg := Config{Port: get("PORT", "8080"), MongoURI: get("MONGODB_URI", "mongodb://localhost:27017"), MongoDatabase: get("MONGODB_DATABASE", "payflow"), RedisAddr: get("REDIS_ADDR", "localhost:6379"), RedisPassword: os.Getenv("REDIS_PASSWORD"), ClientURL: get("CLIENT_URL", "http://localhost:5173"), SMTPHost: os.Getenv("SMTP_HOST"), SMTPPort: get("SMTP_PORT", "587"), SMTPUsername: os.Getenv("SMTP_USERNAME"), SMTPPassword: os.Getenv("SMTP_PASSWORD"), SMTPFrom: get("SMTP_FROM", os.Getenv("SMTP_USERNAME")), AccessSecret: os.Getenv("JWT_ACCESS_SECRET"), RefreshSecret: os.Getenv("JWT_REFRESH_SECRET"), AccessExpiry: access, RefreshExpiry: refresh}
 	if cfg.AccessSecret == "" || cfg.RefreshSecret == "" {
 		return Config{}, fmt.Errorf("JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be configured")
 	}
