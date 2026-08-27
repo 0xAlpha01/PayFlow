@@ -52,6 +52,7 @@ import ProtectedRoute from "./routes/ProtectedRoute";
 import PublicRoute from "./routes/PublicRoute";
 import { useAuth } from "./context/AuthContext";
 import { dashboardService } from "./services/dashboardService";
+import CustomersPage from "./pages/Customers";
 
 const transactions = [
   {
@@ -105,13 +106,6 @@ const transactions = [
     status: "Failed",
   },
 ];
-const customers = transactions.map((item, index) => ({
-  ...item,
-  spent: ["$12,450.00", "$8,920.00", "$6,240.00", "$4,810.00", "$3,120.00"][
-    index
-  ],
-  payments: [24, 18, 14, 11, 8][index],
-}));
 const navGroups = [
   {
     label: "Overview",
@@ -648,38 +642,6 @@ function Page({ title, description, action, children }) {
   );
 }
 function ListPage({ type }) {
-  if (type === "customers")
-    return (
-      <Page
-        title="Customers"
-        description="Manage your customers and their payment activity."
-        action="Add customer"
-      >
-        <div className="stats-grid compact">
-          <StatCard
-            title="Total customers"
-            value="2,420"
-            change="18.2%"
-            icon={Users}
-          />
-          <StatCard
-            title="Active customers"
-            value="1,892"
-            change="10.4%"
-            icon={Activity}
-            tone="blue"
-          />
-          <StatCard
-            title="Average spend"
-            value="$1,240"
-            change="6.8%"
-            icon={CircleDollarSign}
-            tone="orange"
-          />
-        </div>
-        <Table rows={customers} customerTable />
-      </Page>
-    );
   if (type === "transactions")
     return (
       <Page
@@ -918,11 +880,11 @@ function AppShell() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route
                 path="/customers/:id"
-                element={<ListPage type="customers" />}
+                element={<CustomersPage />}
               />
               <Route
                 path="/customers"
-                element={<ListPage type="customers" />}
+                element={<CustomersPage />}
               />
               <Route
                 path="/invoices/create"

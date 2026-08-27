@@ -588,6 +588,15 @@ td strong {
   font-size: 10px;
   border-top: 1px solid var(--line);
 }
+
+.customer-modal-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 20px; background: rgba(14, 24, 20, .45); }
+.customer-modal { width: min(520px, 100%); padding: 28px; border-radius: 16px; background: #fff; box-shadow: 0 24px 60px rgba(0,0,0,.18); }
+.customer-modal h2 { margin: 0 0 18px; }
+.customer-form { display: grid; gap: 14px; }
+.customer-form label { display: grid; gap: 6px; font-size: 14px; font-weight: 600; }
+.customer-form input, .customer-form select { width: 100%; padding: 11px 12px; border: 1px solid #d8dfdb; border-radius: 8px; background: #fff; }
+.customer-error { margin: 0; color: #b42318; font-size: 14px; }
+.customer-notice { margin: 12px 20px 0; color: #067647; }
 .table-footer div {
   display: flex;
   gap: 4px;

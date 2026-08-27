@@ -7,7 +7,7 @@ import (
 	"github.com/ngwebwork/payflow/internal/services"
 )
 
-func Setup(r *gin.Engine, h *handlers.AuthHandler, dashboard *handlers.DashboardHandler, resources *handlers.ResourceHandler, settings *handlers.SettingsHandler, jwt *services.JWTService, clientURL string) {
+func Setup(r *gin.Engine, h *handlers.AuthHandler, dashboard *handlers.DashboardHandler, resources *handlers.ResourceHandler, customers *handlers.CustomerHandler, settings *handlers.SettingsHandler, jwt *services.JWTService, clientURL string) {
 	r.Use(middleware.CORS(clientURL))
 	api := r.Group("/api/v1/auth")
 	api.POST("/signup", h.Signup)
@@ -36,7 +36,16 @@ func Setup(r *gin.Engine, h *handlers.AuthHandler, dashboard *handlers.Dashboard
 	analyticsAPI.GET("/transactions", dashboard.AnalyticsTransactions)
 	analyticsAPI.GET("/customers", dashboard.AnalyticsCustomers)
 	analyticsAPI.GET("/payments", dashboard.AnalyticsPayments)
-	for _, collection := range []string{"customers", "payments", "transactions", "invoices", "subscriptions"} {
+	customersAPI := r.Group("/api/v1/customers")
+	customersAPI.Use(middleware.Auth(jwt))
+	customersAPI.GET("", customers.List)
+	customersAPI.POST("", customers.Create)
+	customersAPI.GET("/:id", customers.Get)
+	customersAPI.PUT("/:id", customers.Update)
+	customersAPI.DELETE("/:id", customers.Delete)
+	customersAPI.GET("/:id/payments", customers.Payments)
+	customersAPI.GET("/:id/transactions", customers.Transactions)
+	for _, collection := range []string{"payments", "transactions", "invoices", "subscriptions"} {
 		resourceAPI := r.Group("/api/v1/" + collection)
 		resourceAPI.Use(middleware.Auth(jwt))
 		resourceAPI.GET("", func(c *gin.Context) {

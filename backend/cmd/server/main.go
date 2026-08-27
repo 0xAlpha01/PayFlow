@@ -44,10 +44,15 @@ func main() {
 	handler := handlers.NewAuthHandler(auth)
 	dashboardHandler := handlers.NewDashboardHandler(services.NewDashboardService(repositories.NewDashboardRepository(mongo.Database(cfg.MongoDatabase))))
 	resources := handlers.NewResourceHandler(services.NewResourceService(repositories.NewResourceRepository(mongo.Database(cfg.MongoDatabase))))
+	customerRepository, err := repositories.NewCustomerRepository(mongo.Database(cfg.MongoDatabase))
+	if err != nil {
+		log.Fatalf("customer repository setup failed: %v", err)
+	}
+	customers := handlers.NewCustomerHandler(services.NewCustomerService(customerRepository))
 	settings := handlers.NewSettingsHandler(services.NewSettingsService(repository))
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
-	routes.Setup(router, handler, dashboardHandler, resources, settings, jwt, cfg.ClientURL)
+	routes.Setup(router, handler, dashboardHandler, resources, customers, settings, jwt, cfg.ClientURL)
 	server := &http.Server{Addr: ":" + cfg.Port, Handler: router}
 	go func() {
 		log.Printf("PayFlow API listening on :%s", cfg.Port)
