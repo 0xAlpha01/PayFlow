@@ -530,10 +530,8 @@ function Dashboard() {
       setLoading(false);
     }
   }
-  // The initial request synchronizes this view with the protected API.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
-    loadDashboard();
+    void Promise.resolve().then(() => loadDashboard());
   }, []);
   const summary = data.summary;
   if (error)

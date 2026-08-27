@@ -40,7 +40,7 @@ func main() {
 		log.Fatalf("user repository setup failed: %v", err)
 	}
 	jwt := services.NewJWTService(cfg)
-	auth := services.NewAuthService(repository, redis, jwt, services.NewEmailService(cfg), services.NewPhoneService())
+	auth := services.NewAuthService(repository, redis, jwt, services.NewEmailService(cfg), services.NewPhoneService(cfg))
 	handler := handlers.NewAuthHandler(auth)
 	dashboardHandler := handlers.NewDashboardHandler(services.NewDashboardService(repositories.NewDashboardRepository(mongo.Database(cfg.MongoDatabase))))
 	resources := handlers.NewResourceHandler(services.NewResourceService(repositories.NewResourceRepository(mongo.Database(cfg.MongoDatabase))))

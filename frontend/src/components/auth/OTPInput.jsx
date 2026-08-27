@@ -1,5 +1,5 @@
 import { useRef } from "react";
-export default function OTPInput({ value, onChange }) {
+export default function OTPInput({ value, onChange, onInput }) {
   const refs = useRef([]);
   const digits = value.padEnd(6, " ").slice(0, 6).split("");
   function update(index, digit) {
@@ -8,6 +8,7 @@ export default function OTPInput({ value, onChange }) {
       .join("")
       .replaceAll(" ", "");
     onChange(next);
+    onInput?.();
     if (digit && index < 5) refs.current[index + 1]?.focus();
   }
   function handleKey(index, event) {
@@ -19,6 +20,7 @@ export default function OTPInput({ value, onChange }) {
     onChange(
       event.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6),
     );
+    onInput?.();
     refs.current[
       Math.min(event.clipboardData.getData("text").length, 5)
     ]?.focus();

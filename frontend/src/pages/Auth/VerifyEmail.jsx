@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MailCheck } from "lucide-react";
 import { authService } from "../../services/authService";
+import { useAuth } from "../../context/AuthContext";
 import {
   AuthButton,
   AuthError,
@@ -13,6 +14,7 @@ import {
 export default function VerifyEmail() {
   const email = sessionStorage.getItem("payflow_pending_email") || "";
   const navigate = useNavigate();
+  const { completeEmailVerification } = useAuth();
   const [code, setCode] = useState("");
   const [seconds, setSeconds] = useState(600);
   const [cooldown, setCooldown] = useState(0);
@@ -32,7 +34,8 @@ export default function VerifyEmail() {
     setError("");
     setLoading(true);
     try {
-      await authService.verifyEmail({ email, code });
+      const { data } = await authService.verifyEmail({ email, code });
+      completeEmailVerification(data.data);
       setSuccess("Email verified. Continue with your phone number.");
       setTimeout(() => navigate("/verify-phone"), 600);
     } catch (requestError) {

@@ -49,6 +49,12 @@ type PendingSignup struct {
 	VerificationHash string    `json:"verificationHash"`
 	CreatedAt        time.Time `json:"createdAt"`
 }
+type PhoneVerification struct {
+	Phone     string    `json:"phone"`
+	CodeHash  string    `json:"codeHash"`
+	Attempts  int       `json:"attempts"`
+	CreatedAt time.Time `json:"createdAt"`
+}
 
 func NewAuthService(users *repositories.UserRepository, r *redis.Client, jwt *JWTService, email *EmailService, phone *PhoneService) *AuthService {
 	return &AuthService{users: users, redis: r, jwt: jwt, email: email, phone: phone}
@@ -80,6 +86,11 @@ func (s *AuthService) Signup(ctx context.Context, input SignupInput) (*models.Us
 		return nil, errors.New("email is already registered")
 	}
 	if input.Phone != "" {
+		phone, err := utils.NormalizeNigerianPhone(input.Phone)
+		if err != nil {
+			return nil, err
+		}
+		input.Phone = phone
 		existing, err = s.users.ByPhone(ctx, input.Phone)
 		if err != nil {
 			return nil, err
@@ -158,44 +169,62 @@ func (s *AuthService) Logout(ctx context.Context, refresh string) error {
 	}
 	return s.redis.Del(ctx, "session:"+claims.ID).Err()
 }
-func (s *AuthService) VerifyEmail(ctx context.Context, email, verification string) error {
+func (s *AuthService) VerifyEmail(ctx context.Context, email, verification string) (*models.User, string, string, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	key := "pending_signup:" + email
 	pendingData, err := s.redis.Get(ctx, key).Result()
 	if errors.Is(err, redis.Nil) {
-		return errors.New("verification code has expired. Please request a new code")
+		return nil, "", "", errors.New("verification code has expired. Please request a new code")
 	}
 	if err != nil {
-		return errors.New("unable to verify email")
+		return nil, "", "", errors.New("unable to verify email")
 	}
 	var pending PendingSignup
 	if err := json.Unmarshal([]byte(pendingData), &pending); err != nil {
-		return errors.New("invalid verification request")
+		return nil, "", "", errors.New("invalid verification request")
 	}
 	if utils.CheckPassword(pending.VerificationHash, verification) != nil {
-		return errors.New("invalid verification code")
+		return nil, "", "", errors.New("invalid verification code")
 	}
 	existing, err := s.users.ByEmail(ctx, pending.Email)
 	if err != nil {
-		return err
+		return nil, "", "", err
 	}
 	if existing != nil {
-		return errors.New("email is already registered")
+		return nil, "", "", errors.New("email is already registered")
 	}
 	if pending.Phone != "" {
 		existing, err = s.users.ByPhone(ctx, pending.Phone)
 		if err != nil {
-			return err
+			return nil, "", "", err
 		}
 		if existing != nil {
-			return errors.New("phone number is already registered")
+			return nil, "", "", errors.New("phone number is already registered")
 		}
 	}
 	user := &models.User{ID: primitive.NewObjectID(), FirstName: pending.FirstName, LastName: pending.LastName, Email: pending.Email, Phone: pending.Phone, Password: pending.PasswordHash, BusinessName: pending.BusinessName, EmailVerified: true, IsActive: true, CreatedAt: pending.CreatedAt, UpdatedAt: time.Now().UTC()}
 	if err := s.users.Create(ctx, user); err != nil {
-		return err
+		return nil, "", "", err
 	}
-	return s.redis.Del(ctx, key).Err()
+	if err := s.redis.Del(ctx, key).Err(); err != nil {
+		return nil, "", "", err
+	}
+	access, err := s.jwt.Access(user.ID, user.Email)
+	if err != nil {
+		return nil, "", "", err
+	}
+	refresh, err := s.jwt.Refresh(user.ID, user.Email)
+	if err != nil {
+		return nil, "", "", err
+	}
+	claims, err := s.jwt.Parse(refresh, "refresh")
+	if err != nil {
+		return nil, "", "", err
+	}
+	if err := s.redis.Set(ctx, "session:"+claims.ID, user.ID.Hex(), 7*24*time.Hour).Err(); err != nil {
+		return nil, "", "", err
+	}
+	return user, access, refresh, nil
 }
 func (s *AuthService) ResendEmail(ctx context.Context, email string) error {
 	email = strings.ToLower(strings.TrimSpace(email))
@@ -234,25 +263,92 @@ func (s *AuthService) ResendEmail(ctx context.Context, email string) error {
 	}
 	return s.email.SendVerification(pending.Email, value)
 }
-func (s *AuthService) SendPhone(ctx context.Context, phone string) error {
-	user, err := s.users.ByPhone(ctx, phone)
-	if err != nil || user == nil || user.Phone == "" {
+func (s *AuthService) SendPhoneCode(ctx context.Context, userID primitive.ObjectID, requestedPhone string, resend bool) error {
+	user, err := s.users.ByID(ctx, userID)
+	if err != nil || user == nil {
+		return errors.New("user not found")
+	}
+	if user.PhoneVerified {
+		return errors.New("phone is already verified")
+	}
+	if user.Phone == "" {
 		return errors.New("phone number is required")
 	}
-	value := code()
-	if err := s.redis.Set(ctx, "verify:phone:"+phone, value, 10*time.Minute).Err(); err != nil {
+	phone, err := utils.NormalizeNigerianPhone(requestedPhone)
+	if err != nil || phone != user.Phone {
+		return errors.New("invalid phone number")
+	}
+	if !resend {
+		if exists, err := s.redis.Exists(ctx, "phone_verification:"+userID.Hex()).Result(); err == nil && exists > 0 {
+			return nil
+		}
+	}
+	allowed, err := s.redis.SetNX(ctx, "phone_verification_resend:"+userID.Hex(), "1", time.Minute).Result()
+	if err != nil {
 		return err
 	}
-	return s.phone.SendCode(user.Phone, value)
-}
-func (s *AuthService) VerifyPhone(ctx context.Context, phone, value string) error {
-	key := "verify:phone:" + phone
-	if s.redis.Get(ctx, key).Val() != value {
-		return errors.New("invalid or expired verification code")
+	if !allowed {
+		return errors.New("please wait before requesting another code")
 	}
-	user, err := s.users.ByPhone(ctx, phone)
+	value := code()
+	if value == "" {
+		return errors.New("unable to generate verification code")
+	}
+	hash, err := utils.HashPassword(value)
+	if err != nil {
+		return err
+	}
+	data, err := json.Marshal(PhoneVerification{Phone: user.Phone, CodeHash: hash, CreatedAt: time.Now().UTC()})
+	if err != nil {
+		return err
+	}
+	if err := s.redis.Set(ctx, "phone_verification:"+userID.Hex(), data, 10*time.Minute).Err(); err != nil {
+		return err
+	}
+	if err := s.phone.SendVerificationCode(user.Phone, value); err != nil {
+		_ = s.redis.Del(ctx, "phone_verification:"+userID.Hex()).Err()
+		return err
+	}
+	return nil
+}
+
+func (s *AuthService) VerifyPhone(ctx context.Context, userID primitive.ObjectID, value string) error {
+	if len(value) != 6 {
+		return errors.New("invalid verification code")
+	}
+	user, err := s.users.ByID(ctx, userID)
 	if err != nil || user == nil {
+		return errors.New("user not found")
+	}
+	if user.PhoneVerified {
+		return errors.New("phone is already verified")
+	}
+	key := "phone_verification:" + userID.Hex()
+	data, err := s.redis.Get(ctx, key).Result()
+	if errors.Is(err, redis.Nil) {
+		return errors.New("verification code has expired. Please request a new code")
+	}
+	if err != nil {
+		return errors.New("unable to verify phone")
+	}
+	var verification PhoneVerification
+	if err := json.Unmarshal([]byte(data), &verification); err != nil {
 		return errors.New("invalid phone verification request")
+	}
+	if verification.Attempts >= 5 {
+		return errors.New("too many attempts. Please request a new code")
+	}
+	if utils.CheckPassword(verification.CodeHash, value) != nil {
+		verification.Attempts++
+		updated, _ := json.Marshal(verification)
+		ttl, ttlErr := s.redis.TTL(ctx, key).Result()
+		if ttlErr == nil && ttl > 0 {
+			_ = s.redis.Set(ctx, key, updated, ttl).Err()
+		}
+		if verification.Attempts >= 5 {
+			return errors.New("too many attempts. Please request a new code")
+		}
+		return errors.New("invalid verification code")
 	}
 	if err := s.users.Update(ctx, user.ID, bson.M{"phoneVerified": true}); err != nil {
 		return err

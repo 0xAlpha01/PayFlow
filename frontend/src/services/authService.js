@@ -10,7 +10,8 @@ export const authService = {
   resendEmailVerification: (email) =>
     api.post("/auth/resend-email-verification", { email }),
   sendPhoneCode: (phone) => api.post("/auth/send-phone-code", { phone }),
-  verifyPhone: (data) => api.post("/auth/verify-phone", data),
+  resendPhoneCode: (phone) => api.post("/auth/resend-phone-code", { phone }),
+  verifyPhone: (code) => api.post("/auth/verify-phone", { code }),
   forgotPassword: (email) => api.post("/auth/forgot-password", { email }),
   resetPassword: (data) => api.post("/auth/reset-password", data),
 };

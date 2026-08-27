@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Smartphone } from "lucide-react";
 import { authService } from "../../services/authService";
+import { useAuth } from "../../context/AuthContext";
 import {
   AuthButton,
   AuthError,
@@ -16,13 +17,14 @@ function maskPhone(phone) {
     : "your phone number";
 }
 export default function VerifyPhone() {
-  const phone = sessionStorage.getItem("payflow_pending_phone") || "";
+  const { user, markPhoneVerified } = useAuth();
+  const phone = user?.phone || sessionStorage.getItem("payflow_pending_phone") || "";
   const navigate = useNavigate();
   const [code, setCode] = useState("");
   const [seconds, setSeconds] = useState(600);
   const [cooldown, setCooldown] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(true);
+  const [sending, setSending] = useState(Boolean(phone));
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   useEffect(() => {
@@ -30,6 +32,7 @@ export default function VerifyPhone() {
       setSeconds((value) => Math.max(value - 1, 0));
       setCooldown((value) => Math.max(value - 1, 0));
     }, 1000);
+    if (!phone) return () => clearInterval(timer);
     authService
       .sendPhoneCode(phone)
       .then(() => setSuccess("Verification code sent."))
@@ -48,12 +51,11 @@ export default function VerifyPhone() {
     setError("");
     setLoading(true);
     try {
-      await authService.verifyPhone({ phone, code });
+      await authService.verifyPhone(code);
+      markPhoneVerified();
       sessionStorage.removeItem("payflow_pending_email");
       sessionStorage.removeItem("payflow_pending_phone");
-      navigate("/login", {
-        state: { message: "Phone verified. Sign in to continue." },
-      });
+      navigate("/dashboard", { replace: true });
     } catch (requestError) {
       setError(
         requestError.response?.data?.message ||
@@ -67,7 +69,7 @@ export default function VerifyPhone() {
     if (cooldown) return;
     setCooldown(60);
     try {
-      await authService.sendPhoneCode(phone);
+      await authService.resendPhoneCode(phone);
       setSuccess("A new verification code has been sent.");
     } catch {
       setError("Unable to resend the code right now.");
@@ -83,9 +85,9 @@ export default function VerifyPhone() {
         <div className="auth-icon">
           <Smartphone size={22} />
         </div>
-        <AuthError message={error} />
+        <AuthError message={error || (!phone ? "A phone number is required to continue." : "")} />
         <AuthSuccess message={success} />
-        <OTPInput value={code} onChange={setCode} />
+        <OTPInput value={code} onChange={setCode} onInput={() => setError("")} />
         <span className="otp-timer">Code expires in {time}</span>
         <AuthButton loading={loading || sending} type="submit">
           {sending ? "Sending code" : "Verify phone"}

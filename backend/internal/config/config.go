@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Port, MongoURI, MongoDatabase, RedisAddr, RedisPassword, ClientURL string
 	SMTPHost, SMTPPort, SMTPUsername, SMTPPassword, SMTPFrom           string
+	SMSProvider, SMSAPIKey, SMSSenderID                                string
 	RedisDB                                                            int
 	AccessSecret, RefreshSecret                                        string
 	AccessExpiry, RefreshExpiry                                        time.Duration
@@ -73,6 +74,9 @@ func Load() (Config, error) {
 			"SMTP_FROM",
 			os.Getenv("SMTP_USERNAME"),
 		),
+		SMSProvider: os.Getenv("SMS_PROVIDER"),
+		SMSAPIKey:   os.Getenv("SMS_API_KEY"),
+		SMSSenderID: os.Getenv("SMS_SENDER_ID"),
 
 		AccessSecret:  os.Getenv("JWT_ACCESS_SECRET"),
 		RefreshSecret: os.Getenv("JWT_REFRESH_SECRET"),
@@ -96,4 +100,4 @@ func get(key, fallback string) string {
 	}
 
 	return fallback
-}	
+}

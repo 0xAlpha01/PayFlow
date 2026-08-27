@@ -63,6 +63,14 @@ export function AuthProvider({ children }) {
     setUser(session.user);
     return session.user;
   }
+  function completeEmailVerification(session) {
+    const saved = saveSession(session);
+    setAccessToken(saved.accessToken);
+    setUser(saved.user);
+  }
+  function markPhoneVerified() {
+    setUser((current) => (current ? { ...current, phoneVerified: true } : current));
+  }
   async function signup(details) {
     return authService.signup(details);
   }
@@ -87,6 +95,8 @@ export function AuthProvider({ children }) {
         isAuthenticated: Boolean(user && accessToken),
         loading,
         login,
+        completeEmailVerification,
+        markPhoneVerified,
         signup,
         logout,
         refreshToken,

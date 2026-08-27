@@ -84,11 +84,12 @@ func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 		utils.Failure(c, 400, "email and code are required", nil)
 		return
 	}
-	if err := h.auth.VerifyEmail(c, body.Email, body.Code); err != nil {
+	user, access, refresh, err := h.auth.VerifyEmail(c, body.Email, body.Code)
+	if err != nil {
 		utils.Failure(c, 400, err.Error(), nil)
 		return
 	}
-	utils.Success(c, 200, "Email verified", nil)
+	utils.Success(c, 200, "Email verified", gin.H{"user": user, "accessToken": access, "refreshToken": refresh})
 }
 func (h *AuthHandler) ResendEmail(c *gin.Context) {
 	var body struct {
@@ -119,26 +120,72 @@ func (h *AuthHandler) SendPhone(c *gin.Context) {
 		utils.Failure(c, 400, "phone is required", nil)
 		return
 	}
-	if err := h.auth.SendPhone(c, body.Phone); err != nil {
-		utils.Failure(c, 400, err.Error(), nil)
+	id, ok := userID(c)
+	if !ok {
+		utils.Failure(c, 401, "unauthorized", nil)
 		return
 	}
-	utils.Success(c, 200, "Phone verification code sent", nil)
+	if err := h.auth.SendPhoneCode(c, id, body.Phone, false); err != nil {
+		status := http.StatusBadRequest
+		if strings.Contains(err.Error(), "wait") {
+			status = http.StatusTooManyRequests
+		}
+		if strings.Contains(err.Error(), "not configured") || strings.Contains(err.Error(), "provider") {
+			status = http.StatusServiceUnavailable
+		}
+		utils.Failure(c, status, err.Error(), nil)
+		return
+	}
+	utils.Success(c, 200, "Verification code sent.", nil)
 }
 func (h *AuthHandler) VerifyPhone(c *gin.Context) {
 	var body struct {
+		Code string `json:"code"`
+	}
+	if c.ShouldBindJSON(&body) != nil || body.Code == "" {
+		utils.Failure(c, 400, "code is required", nil)
+		return
+	}
+	id, ok := userID(c)
+	if !ok {
+		utils.Failure(c, 401, "unauthorized", nil)
+		return
+	}
+	if err := h.auth.VerifyPhone(c, id, body.Code); err != nil {
+		status := http.StatusBadRequest
+		if strings.Contains(err.Error(), "too many") {
+			status = http.StatusTooManyRequests
+		}
+		utils.Failure(c, status, err.Error(), nil)
+		return
+	}
+	utils.Success(c, 200, "Phone number verified successfully.", nil)
+}
+func (h *AuthHandler) ResendPhone(c *gin.Context) {
+	var body struct {
 		Phone string `json:"phone"`
-		Code  string `json:"code"`
 	}
-	if c.ShouldBindJSON(&body) != nil || body.Phone == "" || body.Code == "" {
-		utils.Failure(c, 400, "phone and code are required", nil)
+	if c.ShouldBindJSON(&body) != nil || body.Phone == "" {
+		utils.Failure(c, 400, "phone is required", nil)
 		return
 	}
-	if err := h.auth.VerifyPhone(c, body.Phone, body.Code); err != nil {
-		utils.Failure(c, 400, err.Error(), nil)
+	id, ok := userID(c)
+	if !ok {
+		utils.Failure(c, 401, "unauthorized", nil)
 		return
 	}
-	utils.Success(c, 200, "Phone verified", nil)
+	if err := h.auth.SendPhoneCode(c, id, body.Phone, true); err != nil {
+		status := http.StatusBadRequest
+		if strings.Contains(err.Error(), "wait") {
+			status = http.StatusTooManyRequests
+		}
+		if strings.Contains(err.Error(), "not configured") || strings.Contains(err.Error(), "provider") {
+			status = http.StatusServiceUnavailable
+		}
+		utils.Failure(c, status, err.Error(), nil)
+		return
+	}
+	utils.Success(c, 200, "Verification code sent.", nil)
 }
 func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	var body struct {
