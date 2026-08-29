@@ -50,9 +50,25 @@ func main() {
 	}
 	customers := handlers.NewCustomerHandler(services.NewCustomerService(customerRepository))
 	settings := handlers.NewSettingsHandler(services.NewSettingsService(repository))
+	paymentRepository, err := repositories.NewPaymentRepository(mongo.Database(cfg.MongoDatabase))
+	if err != nil {
+		log.Fatalf("payment repository setup failed: %v", err)
+	}
+	payments := handlers.NewPaymentHandler(services.NewPaymentService(paymentRepository, services.NewPaystackService(cfg)), cfg.PaystackSecretKey)
+	invoiceRepository, err := repositories.NewInvoiceRepository(mongo.Database(cfg.MongoDatabase))
+	if err != nil {
+		log.Fatalf("invoice repository setup failed: %v", err)
+	}
+	invoices := handlers.NewInvoiceHandler(services.NewInvoiceService(invoiceRepository, services.NewEmailService(cfg)))
+	subscriptionRepository, err := repositories.NewSubscriptionRepository(mongo.Database(cfg.MongoDatabase))
+	if err != nil {
+		log.Fatalf("subscription repository setup failed: %v", err)
+	}
+	subscriptions := handlers.NewSubscriptionHandler(services.NewSubscriptionService(subscriptionRepository))
+	analytics := handlers.NewAnalyticsHandler(services.NewAnalyticsService(repositories.NewAnalyticsRepository(mongo.Database(cfg.MongoDatabase))))
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
-	routes.Setup(router, handler, dashboardHandler, resources, customers, settings, jwt, cfg.ClientURL)
+	routes.Setup(router, handler, dashboardHandler, resources, customers, settings, payments, invoices, subscriptions, analytics, jwt, cfg.ClientURL)
 	server := &http.Server{Addr: ":" + cfg.Port, Handler: router}
 	go func() {
 		log.Printf("PayFlow API listening on :%s", cfg.Port)

@@ -18,6 +18,9 @@ func (s *EmailService) SendVerification(email, code string) error {
 func (s *EmailService) SendPasswordReset(email, token string) error {
 	return s.send(email, "Reset your PayFlow password", fmt.Sprintf("Use this PayFlow password reset token: %s\n\nThis token expires in 15 minutes.", token))
 }
+func (s *EmailService) SendInvoice(email, invoiceNumber string, total float64, currency string, dueDate string) error {
+	return s.send(email, "Invoice "+invoiceNumber+" from PayFlow", fmt.Sprintf("Your invoice %s is ready. Total due: %.2f %s\nDue date: %s", invoiceNumber, total, currency, dueDate))
+}
 func (s *EmailService) send(to, subject, body string) error {
 	if s.host == "" || s.username == "" || s.password == "" {
 		return fmt.Errorf("email delivery is not configured; set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, and SMTP_FROM")

@@ -12,6 +12,7 @@ type Config struct {
 	Port, MongoURI, MongoDatabase, RedisAddr, RedisPassword, ClientURL string
 	SMTPHost, SMTPPort, SMTPUsername, SMTPPassword, SMTPFrom           string
 	SMSProvider, SMSAPIKey, SMSSenderID                                string
+	PaystackSecretKey, PaystackPublicKey, PaystackBaseURL               string
 	RedisDB                                                            int
 	AccessSecret, RefreshSecret                                        string
 	AccessExpiry, RefreshExpiry                                        time.Duration
@@ -77,6 +78,9 @@ func Load() (Config, error) {
 		SMSProvider: os.Getenv("SMS_PROVIDER"),
 		SMSAPIKey:   os.Getenv("SMS_API_KEY"),
 		SMSSenderID: os.Getenv("SMS_SENDER_ID"),
+		PaystackSecretKey: os.Getenv("PAYSTACK_SECRET_KEY"),
+		PaystackPublicKey: os.Getenv("PAYSTACK_PUBLIC_KEY"),
+		PaystackBaseURL: get("PAYSTACK_BASE_URL", "https://api.paystack.co"),
 
 		AccessSecret:  os.Getenv("JWT_ACCESS_SECRET"),
 		RefreshSecret: os.Getenv("JWT_REFRESH_SECRET"),

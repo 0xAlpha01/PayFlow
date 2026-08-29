@@ -23,6 +23,7 @@ type Invoice struct {
 	Currency      string             `bson:"currency" json:"currency"`
 	Status        string             `bson:"status" json:"status"`
 	DueDate       time.Time          `bson:"dueDate" json:"dueDate"`
+	Notes         string             `bson:"notes,omitempty" json:"notes,omitempty"`
 	CreatedAt     time.Time          `bson:"createdAt" json:"createdAt"`
 	UpdatedAt     time.Time          `bson:"updatedAt" json:"updatedAt"`
 }

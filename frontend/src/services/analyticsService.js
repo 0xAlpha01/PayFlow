@@ -1,4 +1,5 @@
 import { api } from "./api";
+export const getAnalyticsSummary = () => api.get("/analytics/summary");
 export const getRevenueAnalytics = (period = "30d") =>
   api.get("/analytics/revenue", { params: { period } });
 export const getTransactionAnalytics = (period = "30d") =>

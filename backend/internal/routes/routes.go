@@ -7,7 +7,7 @@ import (
 	"github.com/ngwebwork/payflow/internal/services"
 )
 
-func Setup(r *gin.Engine, h *handlers.AuthHandler, dashboard *handlers.DashboardHandler, resources *handlers.ResourceHandler, customers *handlers.CustomerHandler, settings *handlers.SettingsHandler, jwt *services.JWTService, clientURL string) {
+func Setup(r *gin.Engine, h *handlers.AuthHandler, dashboard *handlers.DashboardHandler, resources *handlers.ResourceHandler, customers *handlers.CustomerHandler, settings *handlers.SettingsHandler, payments *handlers.PaymentHandler, invoices *handlers.InvoiceHandler, subscriptions *handlers.SubscriptionHandler, analytics *handlers.AnalyticsHandler, jwt *services.JWTService, clientURL string) {
 	r.Use(middleware.CORS(clientURL))
 	api := r.Group("/api/v1/auth")
 	api.POST("/signup", h.Signup)
@@ -32,10 +32,11 @@ func Setup(r *gin.Engine, h *handlers.AuthHandler, dashboard *handlers.Dashboard
 	dashboardAPI.GET("/customers", dashboard.Customers)
 	analyticsAPI := r.Group("/api/v1/analytics")
 	analyticsAPI.Use(middleware.Auth(jwt))
-	analyticsAPI.GET("/revenue", dashboard.AnalyticsRevenue)
-	analyticsAPI.GET("/transactions", dashboard.AnalyticsTransactions)
-	analyticsAPI.GET("/customers", dashboard.AnalyticsCustomers)
-	analyticsAPI.GET("/payments", dashboard.AnalyticsPayments)
+	analyticsAPI.GET("/summary", analytics.Summary)
+	analyticsAPI.GET("/revenue", analytics.Revenue)
+	analyticsAPI.GET("/transactions", analytics.Transactions)
+	analyticsAPI.GET("/customers", analytics.Customers)
+	analyticsAPI.GET("/payments", analytics.Payments)
 	customersAPI := r.Group("/api/v1/customers")
 	customersAPI.Use(middleware.Auth(jwt))
 	customersAPI.GET("", customers.List)
@@ -45,7 +46,32 @@ func Setup(r *gin.Engine, h *handlers.AuthHandler, dashboard *handlers.Dashboard
 	customersAPI.DELETE("/:id", customers.Delete)
 	customersAPI.GET("/:id/payments", customers.Payments)
 	customersAPI.GET("/:id/transactions", customers.Transactions)
-	for _, collection := range []string{"payments", "transactions", "invoices", "subscriptions"} {
+	paymentsAPI := r.Group("/api/v1/payments")
+	paymentsAPI.POST("/webhook", payments.Webhook)
+	paymentsAPI.Use(middleware.Auth(jwt))
+	paymentsAPI.POST("/initialize", payments.Initialize)
+	paymentsAPI.GET("/verify/:reference", payments.Verify)
+	paymentsAPI.GET("/summary", payments.Summary)
+	paymentsAPI.GET("", payments.List)
+	paymentsAPI.GET("/:id", payments.Get)
+	invoicesAPI := r.Group("/api/v1/invoices")
+	invoicesAPI.Use(middleware.Auth(jwt))
+	invoicesAPI.GET("", invoices.List)
+	invoicesAPI.POST("", invoices.Create)
+	invoicesAPI.GET("/:id", invoices.Get)
+	invoicesAPI.PUT("/:id", invoices.Update)
+	invoicesAPI.DELETE("/:id", invoices.Delete)
+	invoicesAPI.POST("/:id/send", invoices.Send)
+	invoicesAPI.POST("/:id/mark-paid", invoices.MarkPaid)
+	subscriptionsAPI := r.Group("/api/v1/subscriptions")
+	subscriptionsAPI.Use(middleware.Auth(jwt))
+	subscriptionsAPI.GET("", subscriptions.List)
+	subscriptionsAPI.GET("/summary", subscriptions.Summary)
+	subscriptionsAPI.POST("", subscriptions.Create)
+	subscriptionsAPI.GET("/:id", subscriptions.Get)
+	subscriptionsAPI.PUT("/:id", subscriptions.Update)
+	subscriptionsAPI.POST("/:id/cancel", subscriptions.Cancel)
+	for _, collection := range []string{"transactions"} {
 		resourceAPI := r.Group("/api/v1/" + collection)
 		resourceAPI.Use(middleware.Auth(jwt))
 		resourceAPI.GET("", func(c *gin.Context) {
@@ -69,7 +95,7 @@ func Setup(r *gin.Engine, h *handlers.AuthHandler, dashboard *handlers.Dashboard
 			resources.Delete(c)
 		})
 	}
-	for _, action := range []struct{ collection, name string }{{"invoices", "send"}, {"invoices", "mark-paid"}, {"subscriptions", "cancel"}} {
+	for _, action := range []struct{ collection, name string }{} {
 		resourceAPI := r.Group("/api/v1/" + action.collection)
 		resourceAPI.Use(middleware.Auth(jwt))
 		resourceAPI.POST("/:id/"+action.name, func(c *gin.Context) {
@@ -86,4 +112,5 @@ func Setup(r *gin.Engine, h *handlers.AuthHandler, dashboard *handlers.Dashboard
 	settingsAPI.GET("/notifications", settings.Notifications)
 	settingsAPI.PUT("/notifications", settings.UpdateNotifications)
 	settingsAPI.POST("/change-password", settings.ChangePassword)
+
 }
