@@ -29,7 +29,7 @@ func (s *PhoneService) SendVerificationCode(phone, code string) error {
 		return errors.New("SMS delivery is not configured")
 	}
 	payload, err := json.Marshal(map[string]string{
-		"to": phone, "from": s.senderID, "sms": fmt.Sprintf("Your PayFlow verification code is %s. It expires in 10 minutes.", code), "type": "plain", "channel": "generic", "api_key": s.apiKey,
+		"to": strings.TrimPrefix(phone, "+"), "from": s.senderID, "sms": fmt.Sprintf("Your PayFlow verification code is %s. It expires in 10 minutes.", code), "type": "plain", "channel": "generic", "api_key": s.apiKey,
 	})
 	if err != nil {
 		return err
