@@ -13,6 +13,7 @@ import (
 	"github.com/ngwebwork/payflow/internal/config"
 	"github.com/ngwebwork/payflow/internal/database"
 	"github.com/ngwebwork/payflow/internal/handlers"
+	"github.com/ngwebwork/payflow/internal/realtime"
 	"github.com/ngwebwork/payflow/internal/repositories"
 	"github.com/ngwebwork/payflow/internal/routes"
 	"github.com/ngwebwork/payflow/internal/services"
@@ -40,7 +41,14 @@ func main() {
 		log.Fatalf("user repository setup failed: %v", err)
 	}
 	jwt := services.NewJWTService(cfg)
-	auth := services.NewAuthService(repository, redis, jwt, services.NewEmailService(cfg), services.NewPhoneService(cfg))
+	hub := realtime.NewHub()
+	notificationRepository, err := repositories.NewNotificationRepository(mongo.Database(cfg.MongoDatabase))
+	if err != nil {
+		log.Fatalf("notification repository setup failed: %v", err)
+	}
+	notifications := services.NewNotificationService(notificationRepository, hub)
+	notificationHandler := handlers.NewNotificationHandler(notifications)
+	auth := services.NewAuthService(repository, redis, jwt, services.NewEmailService(cfg), services.NewPhoneService(cfg), notifications)
 	handler := handlers.NewAuthHandler(auth)
 	dashboardHandler := handlers.NewDashboardHandler(services.NewDashboardService(repositories.NewDashboardRepository(mongo.Database(cfg.MongoDatabase))))
 	resources := handlers.NewResourceHandler(services.NewResourceService(repositories.NewResourceRepository(mongo.Database(cfg.MongoDatabase))))
@@ -54,7 +62,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("payment repository setup failed: %v", err)
 	}
-	payments := handlers.NewPaymentHandler(services.NewPaymentService(paymentRepository, services.NewPaystackService(cfg)), cfg.PaystackSecretKey)
+	payments := handlers.NewPaymentHandler(services.NewPaymentService(paymentRepository, services.NewPaystackService(cfg), notifications), cfg.PaystackSecretKey)
 	invoiceRepository, err := repositories.NewInvoiceRepository(mongo.Database(cfg.MongoDatabase))
 	if err != nil {
 		log.Fatalf("invoice repository setup failed: %v", err)
@@ -66,9 +74,19 @@ func main() {
 	}
 	subscriptions := handlers.NewSubscriptionHandler(services.NewSubscriptionService(subscriptionRepository))
 	analytics := handlers.NewAnalyticsHandler(services.NewAnalyticsService(repositories.NewAnalyticsRepository(mongo.Database(cfg.MongoDatabase))))
+	transferRepository, err := repositories.NewTransferRepository(mongo, mongo.Database(cfg.MongoDatabase))
+	if err != nil {
+		log.Fatalf("transfer repository setup failed: %v", err)
+	}
+	transfers := handlers.NewTransferHandler(services.NewTransferService(transferRepository, repository, notifications))
+	chatRepository, err := repositories.NewChatRepository(mongo.Database(cfg.MongoDatabase))
+	if err != nil {
+		log.Fatalf("chat repository setup failed: %v", err)
+	}
+	chat := handlers.NewChatHandler(services.NewChatService(chatRepository, notifications, hub), jwt, hub, cfg.ClientURL)
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
-	routes.Setup(router, handler, dashboardHandler, resources, customers, settings, payments, invoices, subscriptions, analytics, jwt, cfg.ClientURL)
+	routes.Setup(router, handler, dashboardHandler, resources, customers, settings, payments, invoices, subscriptions, analytics, notificationHandler, transfers, chat, jwt, cfg.ClientURL)
 	server := &http.Server{Addr: ":" + cfg.Port, Handler: router}
 	go func() {
 		log.Printf("PayFlow API listening on :%s", cfg.Port)

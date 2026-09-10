@@ -80,16 +80,25 @@ func (s *PaymentService) Verify(ctx context.Context, userID primitive.ObjectID, 
 		return nil, err
 	}
 	if status == "success" {
-		return s.repo.MarkSuccessful(ctx, p)
+		updated, transitioned, err := s.repo.MarkSuccessful(ctx, p)
+		if transitioned && err == nil {
+			s.notifyPaymentOutcome(ctx, updated, true)
+		}
+		return updated, err
 	}
 	local := "pending"
 	if status == "failed" || status == "abandoned" {
 		local = "failed"
 	}
+	wasFailed := p.Status == "failed"
 	if err = s.repo.UpdateStatus(ctx, p, local); err != nil {
 		return nil, err
 	}
-	return s.repo.ByReference(ctx, reference)
+	updated, err := s.repo.ByReference(ctx, reference)
+	if err == nil && local == "failed" && !wasFailed {
+		s.notifyPaymentOutcome(ctx, updated, false)
+	}
+	return updated, err
 }
 func (s *PaymentService) Webhook(ctx context.Context, reference, status string) (*models.Payment, error) {
 	p, err := s.repo.ByReference(ctx, reference)
@@ -97,13 +106,34 @@ func (s *PaymentService) Webhook(ctx context.Context, reference, status string) 
 		return p, err
 	}
 	if status == "success" {
-		return s.repo.MarkSuccessful(ctx, p)
+		updated, transitioned, err := s.repo.MarkSuccessful(ctx, p)
+		if transitioned && err == nil {
+			s.notifyPaymentOutcome(ctx, updated, true)
+		}
+		return updated, err
 	}
 	local := "pending"
 	if status == "failed" || status == "abandoned" {
 		local = "failed"
 	}
-	return p, s.repo.UpdateStatus(ctx, p, local)
+	wasFailed := p.Status == "failed"
+	if err := s.repo.UpdateStatus(ctx, p, local); err != nil {
+		return p, err
+	}
+	if local == "failed" && !wasFailed {
+		s.notifyPaymentOutcome(ctx, p, false)
+	}
+	return p, nil
+}
+func (s *PaymentService) notifyPaymentOutcome(ctx context.Context, p *models.Payment, successful bool) {
+	if s.notifications == nil || p == nil {
+		return
+	}
+	if successful {
+		_ = s.notifications.Create(ctx, p.UserID, "payment_successful", "Payment successful", fmt.Sprintf("A payment of %s %.2f was completed successfully.", p.Currency, p.Amount), nil)
+		return
+	}
+	_ = s.notifications.Create(ctx, p.UserID, "payment_failed", "Payment failed", fmt.Sprintf("A payment of %s %.2f could not be completed.", p.Currency, p.Amount), nil)
 }
 func (s *PaymentService) List(ctx context.Context, userID primitive.ObjectID, q repositories.PaymentQuery) (repositories.PaymentPage, error) {
 	if q.Page < 1 {

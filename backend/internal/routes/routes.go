@@ -7,7 +7,7 @@ import (
 	"github.com/ngwebwork/payflow/internal/services"
 )
 
-func Setup(r *gin.Engine, h *handlers.AuthHandler, dashboard *handlers.DashboardHandler, resources *handlers.ResourceHandler, customers *handlers.CustomerHandler, settings *handlers.SettingsHandler, payments *handlers.PaymentHandler, invoices *handlers.InvoiceHandler, subscriptions *handlers.SubscriptionHandler, analytics *handlers.AnalyticsHandler, jwt *services.JWTService, clientURL string) {
+func Setup(r *gin.Engine, h *handlers.AuthHandler, dashboard *handlers.DashboardHandler, resources *handlers.ResourceHandler, customers *handlers.CustomerHandler, settings *handlers.SettingsHandler, payments *handlers.PaymentHandler, invoices *handlers.InvoiceHandler, subscriptions *handlers.SubscriptionHandler, analytics *handlers.AnalyticsHandler, notifications *handlers.NotificationHandler, transfers *handlers.TransferHandler, chat *handlers.ChatHandler, jwt *services.JWTService, clientURL string) {
 	r.Use(middleware.CORS(clientURL))
 	api := r.Group("/api/v1/auth")
 	api.POST("/signup", h.Signup)
@@ -96,4 +96,32 @@ func Setup(r *gin.Engine, h *handlers.AuthHandler, dashboard *handlers.Dashboard
 	settingsAPI.PUT("/notifications", settings.UpdateNotifications)
 	settingsAPI.POST("/change-password", settings.ChangePassword)
 
+	notificationsAPI := r.Group("/api/v1/notifications")
+	notificationsAPI.Use(middleware.Auth(jwt))
+	notificationsAPI.GET("", notifications.List)
+	notificationsAPI.GET("/unread-count", notifications.UnreadCount)
+	notificationsAPI.POST("/:id/read", notifications.MarkRead)
+	notificationsAPI.POST("/read-all", notifications.MarkAllRead)
+
+	walletAPI := r.Group("/api/v1/wallet")
+	walletAPI.Use(middleware.Auth(jwt))
+	walletAPI.GET("/balance", transfers.Balance)
+
+	transfersAPI := r.Group("/api/v1/transfers")
+	transfersAPI.Use(middleware.Auth(jwt))
+	transfersAPI.POST("", transfers.Send)
+	transfersAPI.GET("", transfers.List)
+
+	chatAPI := r.Group("/api/v1/chat")
+	chatAPI.Use(middleware.Auth(jwt))
+	chatAPI.GET("/users", chat.SearchUsers)
+	chatAPI.POST("/conversations", chat.StartConversation)
+	chatAPI.GET("/conversations", chat.ListConversations)
+	chatAPI.GET("/conversations/:id/messages", chat.Messages)
+	chatAPI.POST("/conversations/:id/messages", chat.SendMessage)
+	chatAPI.POST("/conversations/:id/read", chat.MarkRead)
+	chatAPI.GET("/unread-count", chat.UnreadCount)
+	// The websocket handshake authenticates the access token itself (see ChatHandler.Socket)
+	// since browsers cannot attach an Authorization header to a WebSocket upgrade request.
+	r.GET("/api/v1/ws", chat.Socket)
 }
