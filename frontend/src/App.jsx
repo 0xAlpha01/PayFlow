@@ -33,7 +33,6 @@ import {
   Plus,
   Search,
   Settings as SettingsIcon,
-  ShieldCheck,
   Sun,
   Users,
   Wallet,
@@ -56,62 +55,12 @@ import CustomersPage from "./pages/Customers";
 import PaymentsPage from "./pages/Payments";
 import TransactionsPage from "./pages/Transactions";
 import InvoicesPage from "./pages/Invoices";
+import PaymentCallback from "./pages/PaymentCallback";
+import SettingsPage from "./pages/Settings";
 import { getCustomers } from "./services/customerService";
 import { cancelSubscription, createSubscription, getSubscriptionSummary, getSubscriptions } from "./services/subscriptionService";
 import { getCustomerAnalytics, getPaymentAnalytics, getRevenueAnalytics } from "./services/analyticsService";
 
-const transactions = [
-  {
-    name: "Olivia Rhye",
-    email: "olivia@acme.io",
-    initials: "OR",
-    id: "#TRX-8291",
-    amount: "$2,400.00",
-    method: "Visa •••• 4242",
-    date: "Mar 24, 2024",
-    status: "Successful",
-  },
-  {
-    name: "Phoenix Baker",
-    email: "phoenix@lattice.com",
-    initials: "PB",
-    id: "#TRX-8290",
-    amount: "$1,820.00",
-    method: "Mastercard •••• 8831",
-    date: "Mar 24, 2024",
-    status: "Pending",
-  },
-  {
-    name: "Lana Steiner",
-    email: "lana@catalog.com",
-    initials: "LS",
-    id: "#TRX-8289",
-    amount: "$890.00",
-    method: "Visa •••• 1092",
-    date: "Mar 23, 2024",
-    status: "Successful",
-  },
-  {
-    name: "Demi Wilkinson",
-    email: "demi@circooles.com",
-    initials: "DW",
-    id: "#TRX-8288",
-    amount: "$3,240.00",
-    method: "Apple Pay",
-    date: "Mar 23, 2024",
-    status: "Refunded",
-  },
-  {
-    name: "Candice Wu",
-    email: "candice@koru.com",
-    initials: "CW",
-    id: "#TRX-8287",
-    amount: "$450.00",
-    method: "Visa •••• 2244",
-    date: "Mar 22, 2024",
-    status: "Failed",
-  },
-];
 const navGroups = [
   {
     label: "Overview",
@@ -412,7 +361,7 @@ function dashboardCustomers(rows = []) {
     status: row.status.charAt(0).toUpperCase() + row.status.slice(1),
   }));
 }
-function Table({ rows = transactions, customerTable = false }) {
+function Table({ rows = [], customerTable = false }) {
   const [query, setQuery] = useState("");
   const filtered = rows.filter((row) =>
     `${row.name} ${row.email} ${row.id}`
@@ -662,136 +611,6 @@ function AnalyticsPanel() {
   const rate = Number(payments?.paymentSuccessRate || 0), growth = Number(customers?.customerGrowth || 0);
   return <Page title="Analytics" description="Understand your business performance at a glance.">{error && <div className="data-empty">{error} <button onClick={load}>Try again</button></div>}<ChartCard data={revenue} loading={loading} onPeriodChange={setPeriod}/><div className="analytics-grid"><div className="metric-panel"><h3>Payment success rate</h3><strong>{loading ? "—" : `${rate.toFixed(1)}%`}</strong><span>{loading ? "Loading analytics..." : payments?.total ? `${payments.successful} successful payments` : "No payment data available."}</span><div className="progress"><i style={{width:`${Math.min(rate,100)}%`}}/></div></div><div className="metric-panel"><h3>Customer growth</h3><strong>{loading ? "—" : `+${growth}`}</strong><span>{loading ? "Loading analytics..." : customers?.newCustomers ? `${customers.newCustomers} new customers` : "No customer data available."}</span><div className="mini-bars">{Array.from({length:8},(_,i)=><i key={i} style={{height:`${customers?.newCustomers ? (i+1)*12.5 : 0}%`}}/>)}</div></div></div></Page>;
 }
-function ListPage({ type }) {
-  if (type === "transactions")
-    return (
-      <Page
-        title="Transactions"
-        description="Review and manage every payment across your business."
-        action="Export"
-      >
-        <Table />
-      </Page>
-    );
-  if (type === "invoices")
-    return (
-      <Page
-        title="Invoices"
-        description="Create, send, and track invoices in one place."
-        action="Create invoice"
-      >
-        <div className="empty-panel">
-          <FileText size={28} />
-          <h3>Your invoices are ready when you are</h3>
-          <p>
-            Create your first invoice to start collecting payments from
-            customers.
-          </p>
-          <Button>
-            <Plus size={16} /> Create invoice
-          </Button>
-        </div>
-      </Page>
-    );
-  if (type === "subscriptions") return <SubscriptionsPanel />;
-  return (
-    <Page
-      title="Analytics"
-      description="Understand your business performance at a glance."
-    >
-      <ChartCard />
-      <div className="analytics-grid">
-        <div className="metric-panel">
-          <h3>Payment success rate</h3>
-          <strong>96.8%</strong>
-          <span>↑ 2.4% this month</span>
-          <div className="progress">
-            <i style={{ width: "96.8%" }} />
-          </div>
-        </div>
-        <div className="metric-panel">
-          <h3>Customer growth</h3>
-          <strong>+284</strong>
-          <span>↑ 18.2% this month</span>
-          <div className="mini-bars">
-            {[30, 50, 38, 62, 48, 82, 70, 92].map((height, i) => (
-              <i key={i} style={{ height: `${height}%` }} />
-            ))}
-          </div>
-        </div>
-      </div>
-    </Page>
-  );
-}
-function Settings() {
-  const [saved, setSaved] = useState(false);
-  return (
-    <Page
-      title="Settings"
-      description="Manage your account and business preferences."
-    >
-      <div className="settings-layout">
-        <div className="settings-nav">
-          {[
-            "Profile",
-            "Business",
-            "Payment settings",
-            "Security",
-            "Notifications",
-          ].map((item, i) => (
-            <button className={i === 0 ? "selected" : ""} key={item}>
-              {item}
-            </button>
-          ))}
-        </div>
-        <div className="settings-content">
-          <div className="settings-section">
-            <div>
-              <h3>Profile information</h3>
-              <p>Update your personal details and contact information.</p>
-            </div>
-            <div className="form-grid">
-              <label>
-                Full name
-                <input defaultValue="Jordan Davis" />
-              </label>
-              <label>
-                Email address
-                <input defaultValue="jordan@acme.io" />
-              </label>
-              <label>
-                Phone number
-                <input defaultValue="+1 (555) 012-3456" />
-              </label>
-              <label>
-                Role
-                <input defaultValue="Administrator" />
-              </label>
-            </div>
-          </div>
-          <div className="settings-section security-row">
-            <div className="setting-icon">
-              <ShieldCheck size={21} />
-            </div>
-            <div>
-              <h3>Security preferences</h3>
-              <p>
-                Two-factor authentication and active sessions are managed here.
-              </p>
-            </div>
-            <Button secondary>Manage</Button>
-          </div>
-          <div className="form-actions">
-            <button className="button button-secondary">Cancel</button>
-            <Button onClick={() => setSaved(true)}>
-              {saved ? "Saved" : "Save changes"}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </Page>
-  );
-}
 function AppShell() {
   const [open, setOpen] = useState(false);
   const [dark, setDark] = useState(false);
@@ -855,15 +674,16 @@ function AppShell() {
                 element={<TransactionsPage />}
               />
               <Route path="/payments" element={<PaymentsPage />} />
+              <Route path="/payments/callback" element={<PaymentCallback />} />
               <Route
                 path="/subscriptions"
-                element={<ListPage type="subscriptions" />}
+                element={<SubscriptionsPanel />}
               />
               <Route
                 path="/analytics"
                 element={<AnalyticsPanel />}
               />
-              <Route path="/settings/*" element={<Settings />} />
+              <Route path="/settings/*" element={<SettingsPage />} />
               <Route
                 path="*"
                 element={
