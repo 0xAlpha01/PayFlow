@@ -16,6 +16,16 @@ type Conversation struct {
 	UpdatedAt      time.Time            `bson:"updatedAt" json:"updatedAt"`
 }
 
+// PublicUser is the safe subset of a User exposed to other users through chat/wallet
+// search results — never the full User document (balance, verification flags, etc.).
+type PublicUser struct {
+	ID           primitive.ObjectID `bson:"_id" json:"id"`
+	FirstName    string             `bson:"firstName" json:"firstName"`
+	LastName     string             `bson:"lastName" json:"lastName"`
+	Email        string             `bson:"email" json:"email"`
+	BusinessName string             `bson:"businessName,omitempty" json:"businessName,omitempty"`
+}
+
 type ChatMessage struct {
 	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	ConversationID primitive.ObjectID `bson:"conversationId" json:"conversationId"`

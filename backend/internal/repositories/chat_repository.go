@@ -15,7 +15,7 @@ import (
 
 type ConversationSummary struct {
 	Conversation models.Conversation `json:"conversation"`
-	Peer         models.User         `json:"peer"`
+	Peer         models.PublicUser   `json:"peer"`
 	UnreadCount  int64               `json:"unreadCount"`
 }
 type MessagePage struct {
