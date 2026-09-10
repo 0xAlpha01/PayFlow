@@ -145,38 +145,42 @@ func (r *PaymentRepository) Summary(ctx context.Context, userID primitive.Object
 }
 
 // MarkSuccessful transitions a payment exactly once; only that transition creates a transaction and increments customer spending.
-func (r *PaymentRepository) MarkSuccessful(ctx context.Context, payment *models.Payment) (*models.Payment, error) {
+// The returned bool reports whether this call actually performed the transition, so callers
+// (e.g. notifications) don't fire again on a repeated, already-successful verification.
+func (r *PaymentRepository) MarkSuccessful(ctx context.Context, payment *models.Payment) (*models.Payment, bool, error) {
 	if payment.Status == "successful" {
-		return payment, nil
+		return payment, false, nil
 	}
 	now := time.Now().UTC()
 	result, err := r.payments.UpdateOne(ctx, bson.M{"_id": payment.ID, "status": bson.M{"$ne": "successful"}}, bson.M{"$set": bson.M{"status": "successful", "updatedAt": now}})
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if result.ModifiedCount == 0 {
-		return r.ByReference(ctx, payment.PaystackReference)
+		updated, err := r.ByReference(ctx, payment.PaystackReference)
+		return updated, false, err
 	}
 	t := models.Transaction{ID: primitive.NewObjectID(), UserID: payment.UserID, CustomerID: payment.CustomerID, Amount: payment.Amount, Currency: payment.Currency, PaymentMethod: "paystack", Status: "successful", PaystackReference: payment.PaystackReference, CreatedAt: now, UpdatedAt: now}
 	tx, err := r.transactions.UpdateOne(ctx, bson.M{"paystackReference": payment.PaystackReference}, bson.M{"$setOnInsert": t}, options.Update().SetUpsert(true))
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	var stored models.Transaction
 	if err = r.transactions.FindOne(ctx, bson.M{"paystackReference": payment.PaystackReference}).Decode(&stored); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	_, err = r.payments.UpdateOne(ctx, bson.M{"_id": payment.ID}, bson.M{"$set": bson.M{"transactionId": stored.ID, "updatedAt": now}})
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if tx.UpsertedCount == 1 {
 		_, err = r.customers.UpdateOne(ctx, bson.M{"_id": payment.CustomerID, "userId": payment.UserID}, bson.M{"$inc": bson.M{"totalSpent": payment.Amount}, "$set": bson.M{"updatedAt": now}})
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 	}
-	return r.ByReference(ctx, payment.PaystackReference)
+	updated, err := r.ByReference(ctx, payment.PaystackReference)
+	return updated, true, err
 }
 func (r *PaymentRepository) UpdateStatus(ctx context.Context, payment *models.Payment, status string) error {
 	if payment.Status == "successful" {

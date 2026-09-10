@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/ngwebwork/payflow/internal/models"
 	"github.com/ngwebwork/payflow/internal/repositories"
 	"github.com/ngwebwork/payflow/internal/utils"
@@ -19,12 +20,13 @@ type InitializePaymentInput struct {
 	Email      string  `json:"email"`
 }
 type PaymentService struct {
-	repo     *repositories.PaymentRepository
-	paystack *PaystackService
+	repo          *repositories.PaymentRepository
+	paystack      *PaystackService
+	notifications *NotificationService
 }
 
-func NewPaymentService(repo *repositories.PaymentRepository, paystack *PaystackService) *PaymentService {
-	return &PaymentService{repo, paystack}
+func NewPaymentService(repo *repositories.PaymentRepository, paystack *PaystackService, notifications *NotificationService) *PaymentService {
+	return &PaymentService{repo, paystack, notifications}
 }
 func (s *PaymentService) Initialize(ctx context.Context, userID primitive.ObjectID, input InitializePaymentInput) (*models.Payment, PaystackInitializeResponse, error) {
 	input.CustomerID = strings.TrimSpace(input.CustomerID)
