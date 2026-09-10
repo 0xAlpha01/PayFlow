@@ -71,6 +71,9 @@ func Setup(r *gin.Engine, h *handlers.AuthHandler, dashboard *handlers.Dashboard
 	subscriptionsAPI.GET("/:id", subscriptions.Get)
 	subscriptionsAPI.PUT("/:id", subscriptions.Update)
 	subscriptionsAPI.POST("/:id/cancel", subscriptions.Cancel)
+	// Transactions are a read-only projection of verified payments: they must only ever be
+	// written by PaymentRepository.MarkSuccessful (after server-side Paystack verification),
+	// never accepted as arbitrary client input, so only read routes are exposed here.
 	for _, collection := range []string{"transactions"} {
 		resourceAPI := r.Group("/api/v1/" + collection)
 		resourceAPI.Use(middleware.Auth(jwt))
@@ -78,29 +81,9 @@ func Setup(r *gin.Engine, h *handlers.AuthHandler, dashboard *handlers.Dashboard
 			c.Params = append(c.Params, gin.Param{Key: "resource", Value: collection})
 			resources.List(c)
 		})
-		resourceAPI.POST("", func(c *gin.Context) {
-			c.Params = append(c.Params, gin.Param{Key: "resource", Value: collection})
-			resources.Create(c)
-		})
 		resourceAPI.GET("/:id", func(c *gin.Context) {
 			c.Params = append(c.Params, gin.Param{Key: "resource", Value: collection})
 			resources.Get(c)
-		})
-		resourceAPI.PUT("/:id", func(c *gin.Context) {
-			c.Params = append(c.Params, gin.Param{Key: "resource", Value: collection})
-			resources.Update(c)
-		})
-		resourceAPI.DELETE("/:id", func(c *gin.Context) {
-			c.Params = append(c.Params, gin.Param{Key: "resource", Value: collection})
-			resources.Delete(c)
-		})
-	}
-	for _, action := range []struct{ collection, name string }{} {
-		resourceAPI := r.Group("/api/v1/" + action.collection)
-		resourceAPI.Use(middleware.Auth(jwt))
-		resourceAPI.POST("/:id/"+action.name, func(c *gin.Context) {
-			c.Params = append(c.Params, gin.Param{Key: "resource", Value: action.collection}, gin.Param{Key: "action", Value: action.name})
-			resources.Action(c)
 		})
 	}
 	settingsAPI := r.Group("/api/v1/settings")
