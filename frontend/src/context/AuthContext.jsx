@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { authService } from "../services/authService";
 import { configureAuth } from "../services/api";
+import { connectSocket, disconnectSocket } from "../services/socket";
 
 const AuthContext = createContext(null);
 const refreshKey = "payflow_refresh_token";
@@ -50,6 +51,11 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (accessToken) connectSocket(accessToken);
+    else disconnectSocket();
+  }, [accessToken]);
+
   function clearSession() {
     sessionStorage.removeItem(refreshKey);
     setAccessToken(null);
@@ -70,6 +76,11 @@ export function AuthProvider({ children }) {
   }
   function markPhoneVerified() {
     setUser((current) => (current ? { ...current, phoneVerified: true } : current));
+  }
+  async function refreshUser() {
+    const { data } = await authService.getCurrentUser();
+    setUser(data.data.user);
+    return data.data.user;
   }
   async function signup(details) {
     return authService.signup(details);
@@ -92,11 +103,13 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider
       value={{
         user,
+        accessToken,
         isAuthenticated: Boolean(user && accessToken),
         loading,
         login,
         completeEmailVerification,
         markPhoneVerified,
+        refreshUser,
         signup,
         logout,
         refreshToken,
