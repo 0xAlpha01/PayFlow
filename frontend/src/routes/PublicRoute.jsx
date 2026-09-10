@@ -11,7 +11,9 @@ export default function PublicRoute() {
         <span>Loading your workspace...</span>
       </div>
     );
+  if (location.pathname === "/verify-phone") {
+    return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+  }
   if (!isAuthenticated) return <Outlet />;
-  if (location.pathname === "/verify-phone") return <Outlet />;
   return <Navigate to="/dashboard" replace />;
 }

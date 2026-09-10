@@ -20,8 +20,8 @@ export function configureAuth(
 ) {
   accessToken = nextAccessToken;
   refreshToken = nextRefreshToken;
-  onRefresh = refreshHandler;
-  onLogout = logoutHandler;
+  if (refreshHandler !== undefined) onRefresh = refreshHandler;
+  if (logoutHandler !== undefined) onLogout = logoutHandler;
 }
 
 api.interceptors.request.use((config) => {

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/smtp"
 
@@ -27,8 +28,45 @@ func (s *EmailService) send(to, subject, body string) error {
 	}
 	message := []byte("From: " + s.from + "\r\nTo: " + to + "\r\nSubject: " + subject + "\r\n\r\n" + body + "\r\n")
 	auth := smtp.PlainAuth("", s.username, s.password, s.host)
+	if s.port == "465" {
+		return s.sendTLS(to, message, auth)
+	}
 	if err := smtp.SendMail(s.host+":"+s.port, auth, s.from, []string{to}, message); err != nil {
 		return fmt.Errorf("send email: %w", err)
 	}
 	return nil
+}
+
+// sendTLS delivers over implicit TLS (port 465); smtp.SendMail only supports STARTTLS.
+func (s *EmailService) sendTLS(to string, message []byte, auth smtp.Auth) error {
+	conn, err := tls.Dial("tcp", s.host+":"+s.port, &tls.Config{ServerName: s.host})
+	if err != nil {
+		return fmt.Errorf("send email: %w", err)
+	}
+	defer conn.Close()
+	client, err := smtp.NewClient(conn, s.host)
+	if err != nil {
+		return fmt.Errorf("send email: %w", err)
+	}
+	defer client.Close()
+	if err := client.Auth(auth); err != nil {
+		return fmt.Errorf("send email: %w", err)
+	}
+	if err := client.Mail(s.from); err != nil {
+		return fmt.Errorf("send email: %w", err)
+	}
+	if err := client.Rcpt(to); err != nil {
+		return fmt.Errorf("send email: %w", err)
+	}
+	writer, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("send email: %w", err)
+	}
+	if _, err := writer.Write(message); err != nil {
+		return fmt.Errorf("send email: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("send email: %w", err)
+	}
+	return client.Quit()
 }
