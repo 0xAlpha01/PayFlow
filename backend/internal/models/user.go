@@ -12,6 +12,7 @@ type User struct {
 	Email                     string             `bson:"email" json:"email"`
 	Phone                     string             `bson:"phone,omitempty" json:"phone,omitempty"`
 	Password                  string             `bson:"password" json:"-"`
+	Balance                   float64            `bson:"balance" json:"balance"`
 	BusinessName              string             `bson:"businessName,omitempty" json:"businessName,omitempty"`
 	BusinessEmail             string             `bson:"businessEmail,omitempty" json:"businessEmail,omitempty"`
 	BusinessPhone             string             `bson:"businessPhone,omitempty" json:"businessPhone,omitempty"`
