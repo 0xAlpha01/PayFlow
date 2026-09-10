@@ -24,11 +24,25 @@ func main() {
 	}
 	defer client.Disconnect(context.Background())
 	db := client.Database(cfg.MongoDatabase)
-	users := db.Collection("users")
 	email := "e2e.tester@payflow.local"
-	_, err = users.UpdateOne(ctx, bson.M{"email": email}, bson.M{"$set": bson.M{"phone": "+2348011112222", "phoneVerified": true, "updatedAt": time.Now().UTC()}})
+	var user struct {
+		ID any `bson:"_id"`
+	}
+	if err := db.Collection("users").FindOne(ctx, bson.M{"email": email}).Decode(&user); err != nil {
+		fmt.Println("no test user found, nothing to clean up")
+		return
+	}
+	uid := user.ID
+	for _, collection := range []string{"payments", "transactions", "customers"} {
+		res, err := db.Collection(collection).DeleteMany(ctx, bson.M{"userId": uid})
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("deleted", res.DeletedCount, "from", collection)
+	}
+	res, err := db.Collection("users").DeleteOne(ctx, bson.M{"email": email})
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("marked phone verified for", email)
+	fmt.Println("deleted", res.DeletedCount, "test user")
 }
