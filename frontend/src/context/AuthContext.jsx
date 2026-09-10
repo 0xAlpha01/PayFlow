@@ -22,15 +22,10 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    configureAuth(
-      null,
-      readRefreshToken(),
-      (session) => {
-        setAccessToken(session.accessToken);
-        saveSession(session);
-      },
-      clearSession,
-    );
+    // The interceptor in api.js calls this handler with no arguments and expects a
+    // Promise resolving to the new access token — refreshToken() below matches that
+    // contract exactly, unlike a handler expecting a full session object.
+    configureAuth(null, readRefreshToken(), refreshToken, clearSession);
     const token = readRefreshToken();
     if (!token) {
       setLoading(false);
