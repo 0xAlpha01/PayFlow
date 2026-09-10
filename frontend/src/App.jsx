@@ -147,9 +147,9 @@ function Sidebar({ open, setOpen, dark, setDark }) {
         </button>
       </div>
       <div className="workspace">
-        <div className="workspace-avatar">A</div>
+        <div className="workspace-avatar">{(user?.businessName || user?.firstName || "P")[0].toUpperCase()}</div>
         <div>
-          <strong>Acme Inc.</strong>
+          <strong>{user?.businessName || "Your business"}</strong>
           <small>Business account</small>
         </div>
         <ChevronDown size={15} />
@@ -208,6 +208,7 @@ function Sidebar({ open, setOpen, dark, setDark }) {
 }
 function Topbar({ setOpen }) {
   const location = useLocation();
+  const { user } = useAuth();
   const title =
     location.pathname === "/dashboard" || location.pathname === "/"
       ? "Dashboard"
@@ -229,7 +230,7 @@ function Topbar({ setOpen }) {
           <Bell size={19} />
           <i />
         </button>
-        <div className="top-avatar">JD</div>
+        <div className="top-avatar">{initials(`${user?.firstName || ""} ${user?.lastName || ""}`.trim()) || "PF"}</div>
       </div>
     </header>
   );

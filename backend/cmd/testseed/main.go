@@ -8,10 +8,7 @@ import (
 
 	"github.com/ngwebwork/payflow/internal/config"
 	"github.com/ngwebwork/payflow/internal/database"
-	"github.com/ngwebwork/payflow/internal/models"
-	"github.com/ngwebwork/payflow/internal/utils"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func main() {
@@ -27,17 +24,11 @@ func main() {
 	}
 	defer client.Disconnect(context.Background())
 	db := client.Database(cfg.MongoDatabase)
-	hash, err := utils.HashPassword("TestPass123!")
+	users := db.Collection("users")
+	email := "e2e.tester@payflow.local"
+	_, err = users.UpdateOne(ctx, bson.M{"email": email}, bson.M{"$set": bson.M{"phone": "+2348011112222", "phoneVerified": true, "updatedAt": time.Now().UTC()}})
 	if err != nil {
 		log.Fatal(err)
 	}
-	users := db.Collection("users")
-	email := "e2e.tester@payflow.local"
-	_, _ = users.DeleteOne(ctx, bson.M{"email": email})
-	now := time.Now().UTC()
-	user := models.User{ID: primitive.NewObjectID(), FirstName: "E2E", LastName: "Tester", Email: email, Password: hash, EmailVerified: true, IsActive: true, CreatedAt: now, UpdatedAt: now}
-	if _, err := users.InsertOne(ctx, user); err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("seeded test user:", user.ID.Hex(), email)
+	fmt.Println("marked phone verified for", email)
 }
