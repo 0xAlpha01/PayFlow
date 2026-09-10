@@ -19,7 +19,6 @@ import {
   Activity,
   ArrowDownLeft,
   ArrowUpRight,
-  Bell,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -28,8 +27,10 @@ import {
   FileText,
   LayoutDashboard,
   Menu,
+  MessageCircle,
   Moon,
   MoreHorizontal,
+  PiggyBank,
   Plus,
   Search,
   Settings as SettingsIcon,
@@ -57,6 +58,10 @@ import TransactionsPage from "./pages/Transactions";
 import InvoicesPage from "./pages/Invoices";
 import PaymentCallback from "./pages/PaymentCallback";
 import SettingsPage from "./pages/Settings";
+import WalletPage from "./pages/Wallet";
+import ChatPage from "./pages/Chat";
+import UserMenu from "./components/UserMenu";
+import NotificationBell from "./components/NotificationBell";
 import { getCustomers } from "./services/customerService";
 import { cancelSubscription, createSubscription, getSubscriptionSummary, getSubscriptions } from "./services/subscriptionService";
 import { getCustomerAnalytics, getPaymentAnalytics, getRevenueAnalytics } from "./services/analyticsService";
@@ -70,11 +75,16 @@ const navGroups = [
     label: "Manage",
     items: [
       { label: "Payments", icon: Wallet, to: "/payments" },
+      { label: "Wallet", icon: PiggyBank, to: "/wallet" },
       { label: "Transactions", icon: Activity, to: "/transactions" },
       { label: "Customers", icon: Users, to: "/customers" },
       { label: "Invoices", icon: FileText, to: "/invoices" },
       { label: "Subscriptions", icon: CreditCard, to: "/subscriptions" },
     ],
+  },
+  {
+    label: "Connect",
+    items: [{ label: "Messages", icon: MessageCircle, to: "/messages" }],
   },
   {
     label: "Insights",
@@ -124,17 +134,7 @@ function StatCard({ title, value, change, icon: Icon, tone = "green" }) {
   );
 }
 function Sidebar({ open, setOpen, dark, setDark }) {
-  const { user, logout } = useAuth();
-  const [loggingOut, setLoggingOut] = useState(false);
-  async function handleLogout() {
-    if (loggingOut) return;
-    setLoggingOut(true);
-    try {
-      await logout();
-    } catch {
-      /* local state is cleared by AuthContext */
-    }
-  }
+  const { user } = useAuth();
   return (
     <aside className={`sidebar ${open ? "open" : ""}`}>
       <div className="brand">
@@ -182,26 +182,24 @@ function Sidebar({ open, setOpen, dark, setDark }) {
           {dark ? <Sun size={18} /> : <Moon size={18} />}{" "}
           {dark ? "Light mode" : "Dark mode"}
         </button>
-        <button
-          className="user"
-          onClick={handleLogout}
-          disabled={loggingOut}
-          title="Sign out"
-        >
-          <div className="avatar">
-            {user?.firstName?.[0] || "J"}
-            {user?.lastName?.[0] || "D"}
-          </div>
-          <div>
-            <strong>
-              {loggingOut
-                ? "Logging out..."
-                : `${user?.firstName || "Jordan"} ${user?.lastName || "Davis"}`}
-            </strong>
-            <small>{user?.email || "jordan@acme.io"}</small>
-          </div>
-          <MoreHorizontal size={18} />
-        </button>
+        <UserMenu
+          direction="up"
+          align="left"
+          triggerClassName="user"
+          trigger={
+            <>
+              <div className="avatar">
+                {user?.firstName?.[0] || "J"}
+                {user?.lastName?.[0] || "D"}
+              </div>
+              <div>
+                <strong>{`${user?.firstName || "Jordan"} ${user?.lastName || "Davis"}`}</strong>
+                <small>{user?.email || "jordan@acme.io"}</small>
+              </div>
+              <MoreHorizontal size={18} />
+            </>
+          }
+        />
       </div>
     </aside>
   );
@@ -226,11 +224,13 @@ function Topbar({ setOpen }) {
         <button className="icon-button">
           <Search size={19} />
         </button>
-        <button className="icon-button notification">
-          <Bell size={19} />
-          <i />
-        </button>
-        <div className="top-avatar">{initials(`${user?.firstName || ""} ${user?.lastName || ""}`.trim()) || "PF"}</div>
+        <NotificationBell />
+        <UserMenu
+          direction="down"
+          align="right"
+          triggerClassName="top-avatar"
+          trigger={initials(`${user?.firstName || ""} ${user?.lastName || ""}`.trim()) || "PF"}
+        />
       </div>
     </header>
   );
@@ -517,10 +517,10 @@ function Dashboard() {
             icon={CircleDollarSign}
           />
           <StatCard
-            title="Available balance"
-            value={formatMoney(summary.availableBalance)}
+            title="Wallet balance"
+            value={new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(user?.balance || 0)}
             change="Live"
-            icon={Wallet}
+            icon={PiggyBank}
             tone="blue"
           />
           <StatCard
@@ -676,6 +676,8 @@ function AppShell() {
               />
               <Route path="/payments" element={<PaymentsPage />} />
               <Route path="/payments/callback" element={<PaymentCallback />} />
+              <Route path="/wallet" element={<WalletPage />} />
+              <Route path="/messages" element={<ChatPage />} />
               <Route
                 path="/subscriptions"
                 element={<SubscriptionsPanel />}
