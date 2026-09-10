@@ -24,7 +24,7 @@ type ChatService struct {
 func NewChatService(repo *repositories.ChatRepository, notifications *NotificationService, hub *realtime.Hub) *ChatService {
 	return &ChatService{repo: repo, notifications: notifications, hub: hub}
 }
-func (s *ChatService) SearchUsers(ctx context.Context, currentUserID primitive.ObjectID, query string) ([]models.User, error) {
+func (s *ChatService) SearchUsers(ctx context.Context, currentUserID primitive.ObjectID, query string) ([]models.PublicUser, error) {
 	return s.repo.SearchUsers(ctx, currentUserID, strings.TrimSpace(query), 20)
 }
 func (s *ChatService) StartConversation(ctx context.Context, userID, peerID primitive.ObjectID) (*models.Conversation, error) {
@@ -104,7 +104,11 @@ func (s *ChatService) SendMessage(ctx context.Context, conversationID, senderID 
 		if len(preview) > 80 {
 			preview = preview[:80] + "…"
 		}
-		_ = s.notifications.Create(ctx, receiverID, "chat_message", "New message from "+name(sender), preview, bson.M{"conversationId": conversationID})
+		senderName := strings.TrimSpace(sender.FirstName + " " + sender.LastName)
+		if senderName == "" {
+			senderName = sender.Email
+		}
+		_ = s.notifications.Create(ctx, receiverID, "chat_message", "New message from "+senderName, preview, bson.M{"conversationId": conversationID})
 	}
 	return message, nil
 }

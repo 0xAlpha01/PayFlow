@@ -54,7 +54,7 @@ func pairKey(a, b primitive.ObjectID) string {
 }
 
 // SearchUsers returns other registered accounts matching a name/email prefix, safe fields only.
-func (r *ChatRepository) SearchUsers(ctx context.Context, currentUserID primitive.ObjectID, query string, limit int) ([]models.User, error) {
+func (r *ChatRepository) SearchUsers(ctx context.Context, currentUserID primitive.ObjectID, query string, limit int) ([]models.PublicUser, error) {
 	filter := bson.M{"_id": bson.M{"$ne": currentUserID}}
 	if query != "" {
 		expression := bson.M{"$regex": regexp.QuoteMeta(query), "$options": "i"}
@@ -66,11 +66,11 @@ func (r *ChatRepository) SearchUsers(ctx context.Context, currentUserID primitiv
 		return nil, err
 	}
 	defer cursor.Close(ctx)
-	items := []models.User{}
+	items := []models.PublicUser{}
 	return items, cursor.All(ctx, &items)
 }
-func (r *ChatRepository) User(ctx context.Context, id primitive.ObjectID) (*models.User, error) {
-	var u models.User
+func (r *ChatRepository) User(ctx context.Context, id primitive.ObjectID) (*models.PublicUser, error) {
+	var u models.PublicUser
 	err := r.users.FindOne(ctx, bson.M{"_id": id}, options.FindOne().SetProjection(bson.M{"firstName": 1, "lastName": 1, "email": 1, "businessName": 1})).Decode(&u)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil

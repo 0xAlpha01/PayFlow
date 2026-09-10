@@ -113,7 +113,6 @@ func (s *AuthService) Signup(ctx context.Context, input SignupInput) (*models.Us
 	if verification == "" {
 		return nil, errors.New("unable to generate verification code")
 	}
-	fmt.Println("TESTONLY_VERIFICATION_CODE", input.Email, verification)
 	verificationHash, err := utils.HashPassword(verification)
 	if err != nil {
 		return nil, err
