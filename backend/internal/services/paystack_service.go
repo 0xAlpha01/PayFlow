@@ -13,8 +13,8 @@ import (
 )
 
 type PaystackService struct {
-	secret, baseURL string
-	client          *http.Client
+	secret, baseURL, callbackURL string
+	client                       *http.Client
 }
 type PaystackInitializeResponse struct {
 	AuthorizationURL string `json:"authorization_url"`
@@ -22,7 +22,12 @@ type PaystackInitializeResponse struct {
 }
 
 func NewPaystackService(cfg config.Config) *PaystackService {
-	return &PaystackService{secret: cfg.PaystackSecretKey, baseURL: strings.TrimRight(cfg.PaystackBaseURL, "/"), client: &http.Client{}}
+	return &PaystackService{
+		secret:      cfg.PaystackSecretKey,
+		baseURL:     strings.TrimRight(cfg.PaystackBaseURL, "/"),
+		callbackURL: strings.TrimRight(cfg.ClientURL, "/") + "/payments/callback",
+		client:      &http.Client{},
+	}
 }
 func (s *PaystackService) Initialize(ctx context.Context, email, reference string, amountKobo int64) (PaystackInitializeResponse, error) {
 	var result struct {
@@ -30,7 +35,7 @@ func (s *PaystackService) Initialize(ctx context.Context, email, reference strin
 		Message string                     `json:"message"`
 		Data    PaystackInitializeResponse `json:"data"`
 	}
-	payload, _ := json.Marshal(map[string]any{"email": email, "amount": amountKobo, "reference": reference, "currency": "NGN"})
+	payload, _ := json.Marshal(map[string]any{"email": email, "amount": amountKobo, "reference": reference, "currency": "NGN", "callback_url": s.callbackURL})
 	if err := s.request(ctx, http.MethodPost, "/transaction/initialize", payload, &result); err != nil {
 		return PaystackInitializeResponse{}, err
 	}
