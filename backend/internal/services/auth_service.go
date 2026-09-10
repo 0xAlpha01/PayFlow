@@ -20,12 +20,18 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// initialTestBalance is credited exactly once, server-side, when a new account is
+// created (VerifyEmail is the only code path that inserts a user document) — the
+// frontend never supplies or influences this value.
+const initialTestBalance = 50000
+
 type AuthService struct {
-	users *repositories.UserRepository
-	redis *redis.Client
-	jwt   *JWTService
-	email *EmailService
-	phone *PhoneService
+	users         *repositories.UserRepository
+	redis         *redis.Client
+	jwt           *JWTService
+	email         *EmailService
+	phone         *PhoneService
+	notifications *NotificationService
 }
 type SignupInput struct {
 	FirstName    string `json:"firstName"`
@@ -56,8 +62,8 @@ type PhoneVerification struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-func NewAuthService(users *repositories.UserRepository, r *redis.Client, jwt *JWTService, email *EmailService, phone *PhoneService) *AuthService {
-	return &AuthService{users: users, redis: r, jwt: jwt, email: email, phone: phone}
+func NewAuthService(users *repositories.UserRepository, r *redis.Client, jwt *JWTService, email *EmailService, phone *PhoneService, notifications *NotificationService) *AuthService {
+	return &AuthService{users: users, redis: r, jwt: jwt, email: email, phone: phone, notifications: notifications}
 }
 func code() string {
 	number, err := rand.Int(rand.Reader, big.NewInt(1000000))
@@ -202,9 +208,12 @@ func (s *AuthService) VerifyEmail(ctx context.Context, email, verification strin
 			return nil, "", "", errors.New("phone number is already registered")
 		}
 	}
-	user := &models.User{ID: primitive.NewObjectID(), FirstName: pending.FirstName, LastName: pending.LastName, Email: pending.Email, Phone: pending.Phone, Password: pending.PasswordHash, BusinessName: pending.BusinessName, EmailVerified: true, IsActive: true, CreatedAt: pending.CreatedAt, UpdatedAt: time.Now().UTC()}
+	user := &models.User{ID: primitive.NewObjectID(), FirstName: pending.FirstName, LastName: pending.LastName, Email: pending.Email, Phone: pending.Phone, Password: pending.PasswordHash, Balance: initialTestBalance, BusinessName: pending.BusinessName, EmailVerified: true, IsActive: true, CreatedAt: pending.CreatedAt, UpdatedAt: time.Now().UTC()}
 	if err := s.users.Create(ctx, user); err != nil {
 		return nil, "", "", err
+	}
+	if s.notifications != nil {
+		_ = s.notifications.Create(ctx, user.ID, "account_created", "Welcome to PayFlow!", "Your account is ready and funded with a NGN 50,000.00 test balance.", nil)
 	}
 	if err := s.redis.Del(ctx, key).Err(); err != nil {
 		return nil, "", "", err
