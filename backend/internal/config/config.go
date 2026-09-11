@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -56,6 +57,14 @@ func Load() (Config, error) {
 		)
 	}
 
+	redisDB := 0
+	if raw := os.Getenv("REDIS_DB"); raw != "" {
+		redisDB, err = strconv.Atoi(raw)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid REDIS_DB: %w", err)
+		}
+	}
+
 	cfg := Config{
 		Port:          get("PORT", "8080"),
 		MongoURI:      get("MONGODB_URI", "mongodb://localhost:27017"),
@@ -63,6 +72,7 @@ func Load() (Config, error) {
 
 		RedisAddr:     get("REDIS_ADDR", "localhost:6379"),
 		RedisPassword: os.Getenv("REDIS_PASSWORD"),
+		RedisDB:       redisDB,
 
 		ClientURL: get(
 			"CLIENT_URL",
