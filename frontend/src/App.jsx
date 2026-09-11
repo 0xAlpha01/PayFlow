@@ -65,6 +65,7 @@ import NotificationBell from "./components/NotificationBell";
 import { getCustomers } from "./services/customerService";
 import { cancelSubscription, createSubscription, getSubscriptionSummary, getSubscriptions } from "./services/subscriptionService";
 import { getCustomerAnalytics, getPaymentAnalytics, getRevenueAnalytics } from "./services/analyticsService";
+import { formatCurrency, formatCurrencyCompact } from "./utils/currency";
 
 const navGroups = [
   {
@@ -304,11 +305,11 @@ function ChartCard({ data = [], loading = false, onPeriodChange }) {
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: "#8b96a5", fontSize: 11 }}
-                tickFormatter={(value) => `$${value / 1000}k`}
-                width={44}
+                tickFormatter={(value) => formatCurrencyCompact(value)}
+                width={54}
               />
               <Tooltip
-                formatter={(value) => [`$${value.toLocaleString()}`, "Revenue"]}
+                formatter={(value) => [formatCurrency(value), "Revenue"]}
                 contentStyle={{ border: "1px solid #e6ebe8", borderRadius: 8 }}
               />
               <Area
@@ -326,7 +327,7 @@ function ChartCard({ data = [], loading = false, onPeriodChange }) {
   );
 }
 function formatMoney(value) {
-  return `$${Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return formatCurrency(value);
 }
 function initials(name = "") {
   return name
@@ -518,7 +519,7 @@ function Dashboard() {
           />
           <StatCard
             title="Wallet balance"
-            value={new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(user?.balance || 0)}
+            value={formatCurrency(user?.balance)}
             change="Live"
             icon={PiggyBank}
             tone="blue"

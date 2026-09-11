@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 import { createCustomer, deleteCustomer, getCustomer, getCustomerPayments, getCustomerTransactions, getCustomers, updateCustomer } from "../services/customerService";
+import { formatCurrency as amount } from "../utils/currency";
 
 const blank = { firstName: "", lastName: "", email: "", phone: "", status: "active" };
-const amount = (value) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(value || 0);
 function Form({ customer, saving, close, save }) {
   const [form, setForm] = useState(customer || blank), [error, setError] = useState("");
   const update = (event) => setForm({ ...form, [event.target.name]: event.target.value });

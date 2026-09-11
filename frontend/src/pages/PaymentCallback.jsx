@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
 import { verifyPayment } from "../services/paymentService";
+import { formatCurrency } from "../utils/currency";
 
-const money = (value, currency = "NGN") =>
-  new Intl.NumberFormat("en-NG", { style: "currency", currency }).format(Number(value || 0));
+const money = (value) => formatCurrency(value);
 
 export default function PaymentCallback() {
   const [params] = useSearchParams();

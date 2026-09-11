@@ -3,8 +3,7 @@ import { ArrowDownLeft, ArrowUpRight, Wallet as WalletIcon } from "lucide-react"
 import { getWalletBalance, getTransfers, sendTransfer } from "../services/walletService";
 import { searchChatUsers } from "../services/chatService";
 import { useAuth } from "../context/AuthContext";
-
-const money = (value) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(Number(value || 0));
+import { formatCurrency as money } from "../utils/currency";
 
 export default function WalletPage() {
   const { user, refreshUser } = useAuth();

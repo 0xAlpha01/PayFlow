@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/ngwebwork/payflow/internal/models"
 	"github.com/ngwebwork/payflow/internal/repositories"
 	"github.com/ngwebwork/payflow/internal/utils"
@@ -130,10 +129,10 @@ func (s *PaymentService) notifyPaymentOutcome(ctx context.Context, p *models.Pay
 		return
 	}
 	if successful {
-		_ = s.notifications.Create(ctx, p.UserID, "payment_successful", "Payment successful", fmt.Sprintf("A payment of %s %.2f was completed successfully.", p.Currency, p.Amount), nil)
+		_ = s.notifications.Create(ctx, p.UserID, "payment_successful", "Payment successful", "A payment of "+utils.FormatNaira(p.Amount)+" was completed successfully.", nil)
 		return
 	}
-	_ = s.notifications.Create(ctx, p.UserID, "payment_failed", "Payment failed", fmt.Sprintf("A payment of %s %.2f could not be completed.", p.Currency, p.Amount), nil)
+	_ = s.notifications.Create(ctx, p.UserID, "payment_failed", "Payment failed", "A payment of "+utils.FormatNaira(p.Amount)+" could not be completed.", nil)
 }
 func (s *PaymentService) List(ctx context.Context, userID primitive.ObjectID, q repositories.PaymentQuery) (repositories.PaymentPage, error) {
 	if q.Page < 1 {

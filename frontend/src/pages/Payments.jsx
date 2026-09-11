@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 import { getCustomers } from "../services/customerService";
 import { getPaymentSummary, getPayments, initializePayment } from "../services/paymentService";
-
-const money = (value) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(Number(value || 0));
+import { formatCurrency as money } from "../utils/currency";
 
 export default function PaymentsPage() {
   const [rows, setRows] = useState([]), [summary, setSummary] = useState(null), [customers, setCustomers] = useState([]);

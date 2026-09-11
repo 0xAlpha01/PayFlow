@@ -213,7 +213,7 @@ func (s *AuthService) VerifyEmail(ctx context.Context, email, verification strin
 		return nil, "", "", err
 	}
 	if s.notifications != nil {
-		_ = s.notifications.Create(ctx, user.ID, "account_created", "Welcome to PayFlow!", "Your account is ready and funded with a NGN 50,000.00 test balance.", nil)
+		_ = s.notifications.Create(ctx, user.ID, "account_created", "Welcome to PayFlow!", "Your account is ready and funded with a "+utils.FormatNaira(initialTestBalance)+" test balance.", nil)
 	}
 	if err := s.redis.Del(ctx, key).Err(); err != nil {
 		return nil, "", "", err

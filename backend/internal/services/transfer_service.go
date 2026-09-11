@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -93,5 +92,5 @@ func (s *TransferService) List(ctx context.Context, userID primitive.ObjectID, p
 	return s.transfers.List(ctx, userID, page, limit)
 }
 func money(amount float64) string {
-	return fmt.Sprintf("NGN %.2f", amount)
+	return utils.FormatNaira(amount)
 }
