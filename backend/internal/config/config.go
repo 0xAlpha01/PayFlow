@@ -19,8 +19,10 @@ type Config struct {
 }
 
 func Load() (Config, error) {
-	// Load the .env file from the backend directory.
-	if err := godotenv.Load(".env"); err != nil {
+	// Load the .env file from the backend directory when present. In production
+	// (e.g. Render, Railway) there is no .env file — env vars are set directly
+	// on the platform, so a missing file here is expected, not an error.
+	if err := godotenv.Load(".env"); err != nil && !os.IsNotExist(err) {
 		return Config{}, fmt.Errorf("failed to load .env file: %w", err)
 	}
 
