@@ -7,15 +7,26 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// AllowedOrigins expands the configured client URL to also accept the localhost/127.0.0.1
-// equivalent, shared by the CORS middleware and the websocket upgrader's origin check.
+// AllowedOrigins expands the configured CLIENT_URL into the full set of origins the API
+// accepts, shared by the CORS middleware and the websocket upgrader's origin check.
+// CLIENT_URL may hold a single origin or a comma-separated list (e.g. the production
+// frontend plus a local dev URL), so both can be allowed at once without swapping env
+// vars between environments. Each entry is also expanded to its localhost/127.0.0.1
+// equivalent for convenience during local development.
 func AllowedOrigins(clientURL string) []string {
-	origins := []string{clientURL}
-	if strings.Contains(clientURL, "localhost") {
-		origins = append(origins, strings.Replace(clientURL, "localhost", "127.0.0.1", 1))
-	}
-	if strings.Contains(clientURL, "127.0.0.1") {
-		origins = append(origins, strings.Replace(clientURL, "127.0.0.1", "localhost", 1))
+	var origins []string
+	for _, raw := range strings.Split(clientURL, ",") {
+		origin := strings.TrimSpace(strings.TrimSuffix(raw, "/"))
+		if origin == "" {
+			continue
+		}
+		origins = append(origins, origin)
+		if strings.Contains(origin, "localhost") {
+			origins = append(origins, strings.Replace(origin, "localhost", "127.0.0.1", 1))
+		}
+		if strings.Contains(origin, "127.0.0.1") {
+			origins = append(origins, strings.Replace(origin, "127.0.0.1", "localhost", 1))
+		}
 	}
 	return origins
 }
