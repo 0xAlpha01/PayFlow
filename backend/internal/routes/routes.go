@@ -9,6 +9,14 @@ import (
 
 func Setup(r *gin.Engine, h *handlers.AuthHandler, dashboard *handlers.DashboardHandler, resources *handlers.ResourceHandler, customers *handlers.CustomerHandler, settings *handlers.SettingsHandler, payments *handlers.PaymentHandler, invoices *handlers.InvoiceHandler, subscriptions *handlers.SubscriptionHandler, analytics *handlers.AnalyticsHandler, notifications *handlers.NotificationHandler, transfers *handlers.TransferHandler, chat *handlers.ChatHandler, jwt *services.JWTService, clientURL string) {
 	r.Use(middleware.CORS(clientURL))
+	// Render probes the service root. Keep this public and dependency-free so a
+	// successful deployment is distinguishable from an unknown API path.
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+	r.GET("/healthz", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
 	api := r.Group("/api/v1/auth")
 	api.POST("/signup", h.Signup)
 	api.POST("/login", h.Login)
