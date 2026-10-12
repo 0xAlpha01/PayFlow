@@ -26,11 +26,8 @@ export default function Login() {
       return setError("Enter your email and password.");
     setLoading(true);
     try {
-      const user = await login(form);
-      navigate(
-        user.phoneVerified ? location.state?.from || "/dashboard" : "/verify-phone",
-        { replace: true },
-      );
+      await login(form);
+      navigate(location.state?.from || "/dashboard", { replace: true });
     } catch (requestError) {
       setError(
         requestError.response?.data?.message ||

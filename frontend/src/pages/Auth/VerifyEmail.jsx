@@ -36,8 +36,10 @@ export default function VerifyEmail() {
     try {
       const { data } = await authService.verifyEmail({ email, code });
       completeEmailVerification(data.data);
-      setSuccess("Email verified. Continue with your phone number.");
-      setTimeout(() => navigate("/verify-phone"), 600);
+      sessionStorage.removeItem("payflow_pending_email");
+      sessionStorage.removeItem("payflow_pending_phone");
+      setSuccess("Email verified. Taking you to your dashboard.");
+      setTimeout(() => navigate("/dashboard", { replace: true }), 600);
     } catch (requestError) {
       setError(
         requestError.response?.data?.message ||

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
 import {
   changePassword,
@@ -225,6 +226,7 @@ function NotificationsTab() {
 
 function SecurityTab() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [form, setForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -258,6 +260,11 @@ function SecurityTab() {
           <h3>Account security</h3>
           <p>Signed in as {user?.email}. Email {user?.emailVerified ? "verified" : "not verified"}, phone {user?.phoneVerified ? "verified" : "not verified"}.</p>
         </div>
+        {!user?.phoneVerified && (
+          <button type="button" className="button" onClick={() => navigate("/verify-phone")}>
+            Verify phone number
+          </button>
+        )}
       </div>
       <form onSubmit={save}>
         <div className="settings-section">
