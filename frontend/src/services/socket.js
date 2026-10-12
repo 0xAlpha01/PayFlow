@@ -1,11 +1,12 @@
+import { apiBaseUrl } from "./apiBase";
+
 const listeners = new Map();
 let socket = null;
 let reconnectTimer = null;
 let currentToken = null;
 
 function wsUrl(token) {
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
-  return `${apiUrl.replace(/^http/, "ws")}/ws?token=${encodeURIComponent(token)}`;
+  return `${apiBaseUrl.replace(/^http/, "ws")}/ws?token=${encodeURIComponent(token)}`;
 }
 
 export function connectSocket(token) {
