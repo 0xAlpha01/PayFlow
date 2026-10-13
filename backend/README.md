@@ -1,25 +1,72 @@
 # PayFlow API
 
-Go/Gin authentication API backed by MongoDB and Redis.
+Go/Gin API for the PayFlow frontend. It uses MongoDB for application data and
+Redis for refresh tokens and short-lived verification codes.
 
-## Run locally
+## Local development
 
-1. Copy `.env.example` to `.env` and set strong JWT secrets.
-2. Start infrastructure: `docker compose up -d mongodb redis`.
-3. Install modules: `go mod tidy`.
-4. Start API: `go run ./cmd/server`.
+1. Copy `.env.example` to `.env` and set strong, unique JWT secrets.
+2. Start MongoDB and Redis: `docker compose up -d mongodb redis`.
+3. Run the API: `go run ./cmd/server`.
 
-The API listens on `http://localhost:8080` and exposes authentication routes under `/api/v1/auth`.
+The API listens on `http://localhost:8080`. All application endpoints use the
+`/api/v1` prefix; for example, signup is `POST /api/v1/auth/signup`.
 
-## Render and frontend deployment
+## Health checks
 
-Deploy the `backend` directory as the Render service root (or use its Dockerfile).
-Set the frontend host's `VITE_API_URL` to `https://payflow-37vp.onrender.com/api/v1`
-and set Render's `CLIENT_URL` to the exact deployed frontend origin (without a
-trailing slash). If you need local development too, separate allowed origins in
-`CLIENT_URL` with commas. Redeploy the frontend after changing `VITE_API_URL`:
-Vite embeds `VITE_*` values at build time.
+- `GET /` returns `{ "status": "ok" }`.
+- `GET /healthz` returns `{ "status": "ok" }`.
 
-## Email verification
+Use `/healthz` as the Render health-check path if you configure one.
 
-Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and `SMTP_FROM` in `.env` to deliver verification and password-reset emails through an SMTP provider. When SMTP is intentionally unset, verification codes are logged by the backend for local development. Restart the API after changing `.env`, then use **Resend code** for accounts that were created before email delivery was configured.
+## Render deployment
+
+Deploy the `backend` directory as the Render service root, or select the
+included `Dockerfile`. Render supplies `PORT`; do not hard-code a production
+port.
+
+Configure these environment variables in Render:
+
+| Variable | Purpose |
+| --- | --- |
+| `MONGODB_URI` | Production MongoDB connection string. |
+| `MONGODB_DATABASE` | Database name, such as `payflow`. |
+| `REDIS_ADDR` | Redis host and port. |
+| `REDIS_PASSWORD` | Redis password, if required. |
+| `JWT_ACCESS_SECRET` | Long random secret for access tokens. |
+| `JWT_REFRESH_SECRET` | Different long random secret for refresh tokens. |
+| `CLIENT_URL` | Exact deployed frontend origin, without a trailing slash. |
+| `SMTP_*` | SMTP configuration for email verification and password reset. |
+| `SMS_*` | Optional phone-verification provider configuration. |
+| `PAYSTACK_*` | Paystack keys and base URL. |
+
+`CLIENT_URL` supports a comma-separated list. For example:
+
+```env
+CLIENT_URL=https://your-frontend.vercel.app,http://localhost:5173
+```
+
+Never commit real credentials or copy them into frontend environment files.
+
+## Frontend deployment
+
+Set this frontend build variable before deploying to Vercel:
+
+```env
+VITE_API_URL=https://payflow-37vp.onrender.com/api/v1
+```
+
+The `/api/v1` portion is required. Vite embeds `VITE_*` values during its build,
+so redeploy the frontend after changing the value. The frontend includes
+`vercel.json` to route direct visits and reloads of client-side pages such as
+`/dashboard` and `/settings/profile` back to the React application.
+
+## Verification flow
+
+New users verify their email before their account is activated. Phone
+verification is optional: users enter the dashboard after email verification
+and can complete phone verification later from **Settings > Security**.
+
+For email delivery, configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`,
+`SMTP_PASSWORD`, and `SMTP_FROM`. When SMTP is intentionally unset locally,
+verification codes are written to backend logs for development only.
