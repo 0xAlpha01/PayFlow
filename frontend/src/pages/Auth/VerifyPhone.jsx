@@ -53,7 +53,6 @@ export default function VerifyPhone() {
     try {
       await authService.verifyPhone(code);
       markPhoneVerified();
-      sessionStorage.removeItem("payflow_pending_email");
       sessionStorage.removeItem("payflow_pending_phone");
       navigate("/dashboard", { replace: true });
     } catch (requestError) {

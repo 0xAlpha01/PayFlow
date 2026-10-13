@@ -43,7 +43,6 @@ import "./App.css";
 import {
   Login,
   Signup,
-  VerifyEmail,
   VerifyPhone,
   ForgotPassword,
   ResetPassword,
@@ -620,7 +619,6 @@ function AppShell() {
   const isAuthPage = [
     "/login",
     "/signup",
-    "/verify-email",
     "/verify-phone",
     "/forgot-password",
     "/reset-password",
@@ -631,7 +629,6 @@ function AppShell() {
         <Route element={<PublicRoute />}>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/verify-phone" element={<VerifyPhone />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
@@ -649,7 +646,6 @@ function AppShell() {
             <Route element={<PublicRoute />}>
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
-              <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/verify-phone" element={<VerifyPhone />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
