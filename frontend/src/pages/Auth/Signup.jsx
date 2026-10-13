@@ -74,9 +74,7 @@ export default function Signup() {
         phone: form.phone,
         password: form.password,
       });
-      sessionStorage.setItem("payflow_pending_email", form.email);
-      sessionStorage.setItem("payflow_pending_phone", form.phone);
-      navigate("/verify-email");
+      navigate("/dashboard", { replace: true });
     } catch (requestError) {
       setError(
         requestError.response?.data?.message ||

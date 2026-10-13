@@ -63,9 +63,9 @@ so redeploy the frontend after changing the value. The frontend includes
 
 ## Verification flow
 
-New users verify their email before their account is activated. Phone
-verification is optional: users enter the dashboard after email verification
-and can complete phone verification later from **Settings > Security**.
+New users are created and signed in immediately; registration does not send a
+verification code. Phone verification is optional and can be completed later
+from **Settings > Security**. SMTP is still used for password-reset emails.
 
 For email delivery, configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`,
 `SMTP_PASSWORD`, and `SMTP_FROM`. When SMTP is intentionally unset locally,

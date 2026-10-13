@@ -73,64 +73,65 @@ func code() string {
 	return fmt.Sprintf("%06d", number.Int64())
 }
 func token() string { b := make([]byte, 32); _, _ = rand.Read(b); return hex.EncodeToString(b) }
-func (s *AuthService) Signup(ctx context.Context, input SignupInput) (*models.User, error) {
+func (s *AuthService) Signup(ctx context.Context, input SignupInput) (*models.User, string, string, error) {
 	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
 	if err := utils.Required(input.FirstName, input.LastName, input.Email, input.Password); err != nil {
-		return nil, err
+		return nil, "", "", err
 	}
 	if err := utils.Email(input.Email); err != nil {
-		return nil, err
+		return nil, "", "", err
 	}
 	if err := utils.ValidatePassword(input.Password); err != nil {
-		return nil, err
+		return nil, "", "", err
 	}
 	existing, err := s.users.ByEmail(ctx, input.Email)
 	if err != nil {
-		return nil, err
+		return nil, "", "", err
 	}
 	if existing != nil {
-		return nil, errors.New("email is already registered")
+		return nil, "", "", errors.New("email is already registered")
 	}
 	if input.Phone != "" {
 		phone, err := utils.NormalizeNigerianPhone(input.Phone)
 		if err != nil {
-			return nil, err
+			return nil, "", "", err
 		}
 		input.Phone = phone
 		existing, err = s.users.ByPhone(ctx, input.Phone)
 		if err != nil {
-			return nil, err
+			return nil, "", "", err
 		}
 		if existing != nil {
-			return nil, errors.New("phone number is already registered")
+			return nil, "", "", errors.New("phone number is already registered")
 		}
 	}
 	hash, err := utils.HashPassword(input.Password)
 	if err != nil {
-		return nil, err
+		return nil, "", "", err
 	}
-	verification := code()
-	if verification == "" {
-		return nil, errors.New("unable to generate verification code")
+	user := &models.User{ID: primitive.NewObjectID(), FirstName: input.FirstName, LastName: input.LastName, Email: input.Email, Phone: input.Phone, Password: hash, Balance: initialTestBalance, BusinessName: input.BusinessName, EmailVerified: true, IsActive: true, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
+	if err := s.users.Create(ctx, user); err != nil {
+		return nil, "", "", err
 	}
-	verificationHash, err := utils.HashPassword(verification)
+	if s.notifications != nil {
+		_ = s.notifications.Create(ctx, user.ID, "account_created", "Welcome to PayFlow!", "Your account is ready and funded with a "+utils.FormatNaira(initialTestBalance)+" test balance.", nil)
+	}
+	access, err := s.jwt.Access(user.ID, user.Email)
 	if err != nil {
-		return nil, err
+		return nil, "", "", err
 	}
-	pending := PendingSignup{FirstName: input.FirstName, LastName: input.LastName, BusinessName: input.BusinessName, Email: input.Email, Phone: input.Phone, PasswordHash: hash, VerificationHash: verificationHash, CreatedAt: time.Now().UTC()}
-	pendingData, err := json.Marshal(pending)
+	refresh, err := s.jwt.Refresh(user.ID, user.Email)
 	if err != nil {
-		return nil, err
+		return nil, "", "", err
 	}
-	key := "pending_signup:" + input.Email
-	if err := s.redis.Set(ctx, key, pendingData, 10*time.Minute).Err(); err != nil {
-		return nil, err
+	claims, err := s.jwt.Parse(refresh, "refresh")
+	if err != nil {
+		return nil, "", "", err
 	}
-	if err := s.email.SendVerification(input.Email, verification); err != nil {
-		_ = s.redis.Del(ctx, key).Err()
-		return nil, err
+	if err := s.redis.Set(ctx, "session:"+claims.ID, user.ID.Hex(), 7*24*time.Hour).Err(); err != nil {
+		return nil, "", "", err
 	}
-	return nil, nil
+	return user, access, refresh, nil
 }
 func (s *AuthService) Login(ctx context.Context, input LoginInput) (*models.User, string, string, error) {
 	user, err := s.users.ByEmail(ctx, strings.ToLower(strings.TrimSpace(input.Email)))

@@ -19,19 +19,16 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 		utils.Failure(c, 400, "invalid request body", nil)
 		return
 	}
-	_, err := h.auth.Signup(c.Request.Context(), input)
+	user, access, refresh, err := h.auth.Signup(c.Request.Context(), input)
 	if err != nil {
 		code := http.StatusBadRequest
 		if strings.Contains(err.Error(), "already") {
 			code = http.StatusConflict
 		}
-		if strings.Contains(err.Error(), "email delivery") {
-			code = http.StatusServiceUnavailable
-		}
 		utils.Failure(c, code, err.Error(), nil)
 		return
 	}
-	utils.Success(c, 201, "Verification code sent to your email.", gin.H{"email": strings.ToLower(strings.TrimSpace(input.Email))})
+	utils.Success(c, 201, "Account created successfully", gin.H{"user": user, "accessToken": access, "refreshToken": refresh})
 }
 func (h *AuthHandler) Login(c *gin.Context) {
 	var input services.LoginInput

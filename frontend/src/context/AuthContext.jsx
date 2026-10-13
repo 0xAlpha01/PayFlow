@@ -78,7 +78,11 @@ export function AuthProvider({ children }) {
     return data.data.user;
   }
   async function signup(details) {
-    return authService.signup(details);
+    const { data } = await authService.signup(details);
+    const session = saveSession(data.data);
+    setAccessToken(session.accessToken);
+    setUser(session.user);
+    return session.user;
   }
   async function logout() {
     try {
