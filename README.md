@@ -145,7 +145,7 @@ npm ci
 npm run dev
 ```
 
-Vite's development server is normally available at `http://localhost:5173`. The frontend API client defaults to `http://localhost:8080/api/v1`. To use another API address, set `VITE_API_URL`; `frontend/.env.production.example` documents the frontend variable for a production build. Set it to the API origin and `/api/v1` path for the environment you are configuring.
+Vite's development server is normally available at `http://localhost:5173`. The frontend API client defaults to `http://localhost:8080/api/v1`. To use another API address, set `VITE_API_URL`; [frontend/.env.production.example](frontend/.env.production.example) documents the frontend variable for a production build. Set it to the API origin and `/api/v1` path for the environment you are configuring.
 
 ### Build, lint, and test
 
@@ -231,4 +231,4 @@ Contributions are welcome. Open an issue to discuss a substantial change, then s
 
 ## License
 
-No license file is present in this repository. All rights are reserved by default; contact the project owner for permission to use, modify, or redistribute the project.
+No license file is present in this repository, so the project does not specify license terms for reuse, modification, or redistribution.
